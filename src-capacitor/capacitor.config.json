@@ -1,0 +1,11 @@
+{
+  "appId": "com.streama.app",
+  "appName": "gw-ent",
+  "webDir": "www",
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK"
+    }
+  }
+}

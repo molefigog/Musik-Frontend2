@@ -1,0 +1,5 @@
+{
+    "require": {
+        "saade/filament-laravel-log": "3.0"
+    }
+}

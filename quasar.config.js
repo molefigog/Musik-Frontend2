@@ -11,7 +11,7 @@ export default defineConfig((/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: [],
+    boot: ['api-config', 'axios', 'pinia', 'logger', 'notifications', 'statusbar'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -37,7 +37,7 @@ export default defineConfig((/* ctx */) => {
         node: 'node20',
       },
 
-      vueRouterMode: 'hash', // available values: 'hash', 'history'
+      vueRouterMode: 'history',
       // vueRouterBase,
       // vueDevtools,
       // vueOptionsAPI: false,
@@ -46,7 +46,10 @@ export default defineConfig((/* ctx */) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+      env: {
+        API_PATH: 'https://gw-ent.co.za/api/',
+        // API_PATH: 'http://music3.local/api/',
+      },
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
@@ -78,7 +81,29 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      config: {},
+      config: {
+        dark: true,
+        // loading: true,
+        // loadingBar: true
+        capacitor: {
+          androidStatusBarPadding: false // the WebView is kept below the status bar
+        },
+
+        notify: {
+          position: 'bottom',       // Android snackbars always appear at the bottom
+          color: 'grey-10',         // Dark charcoal background (#323232 equivalent)
+          textColor: 'white',       // White body text
+          timeout: 4000,            // Android guidelines recommend 4 to 10 seconds
+          classes: 'android-snackbar', // Custom class for layout adjustments
+          actions: [
+            {
+              label: 'DISMISS',     // Uppercase text for Android action buttons
+              color: 'amber',       // Vibrant accent color for actions
+              handler: () => { }
+            }
+          ]
+        }
+      },
 
       // iconSet: 'material-icons', // Quasar icon set
       // lang: 'en-US', // Quasar language pack
@@ -91,7 +116,17 @@ export default defineConfig((/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: [],
+      plugins: [
+        'Cookies',
+        'Dialog',
+        'Loading',
+        // 'LoadingBar',
+        'LocalStorage',
+        'SessionStorage',
+        'Meta',
+        'Notify',
+        'BottomSheet',
+      ],
     },
 
     // animations: 'all', // --- includes all animations

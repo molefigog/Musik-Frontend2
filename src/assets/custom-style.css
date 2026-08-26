@@ -1,0 +1,974 @@
+.main-page {
+    background: linear-gradient(135deg, #020617, #0f172a, #1e293b);
+    color: white;
+}
+/* 🧊 HEADER */
+.glass-header-main {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.toolbar-glass {
+    backdrop-filter: blur(20px);
+}
+/* logo */
+.logo-btn {
+    color: white;
+}
+/* nav buttons */
+.nav-btn {
+    color: rgba(255, 255, 255, 0.7);
+    transition: 0.25s;
+}
+.nav-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+/* user button */
+.glass-user-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+/* 📂 DRAWER */
+.glass-drawer {
+    background: rgba(20, 20, 20, 0.68);
+    backdrop-filter: blur(25px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+/* 👤 profile */
+.drawer-profile {
+    border-radius: 16px;
+    overflow: hidden;
+}
+/* menu items */
+.menu-item {
+    border-radius: 10px;
+    margin: 4px 8px;
+    transition: 0.25s;
+}
+.menu-item:hover {
+    background: rgba(124, 58, 237, 0.2);
+    transform: translateX(4px);
+}
+/* active route (IMPORTANT) */
+.q-router-link--active {
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    color: white !important;
+    border-radius: 10px;
+}
+/* expansion */
+.menu-expand {
+    border-radius: 10px;
+}
+/* 📦 FOOTER */
+.glass-footer {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-toolbar {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* 🧠 dialogs */
+.q-dialog__inner > div {
+    background: rgba(15, 23, 42, 0.85) !important;
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+}
+
+/* 🎞️ scroll */
+.q-scrollarea__content {
+    padding-bottom: 20px;
+}
+/* 🧊 Glass Cards */
+.login-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(124, 58, 237, 0.35), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.25), transparent 35%), #09090f;
+    overflow: hidden;
+}
+
+/* GLASS */
+.glass-card {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* LAYOUT */
+.login-wrapper {
+    width: 100%;
+    max-width: 1050px;
+}
+
+/* LEFT MUSIC SIDE */
+.music-side {
+    position: relative;
+    min-height: 620px;
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.35), rgba(6, 182, 212, 0.12));
+    overflow: hidden;
+}
+
+.music-glow {
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    background: rgba(124, 58, 237, 0.4);
+    filter: blur(80px);
+    border-radius: 50%;
+}
+
+/* TITLES */
+.title {
+    font-weight: 700;
+    background: linear-gradient(to right, #fff, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* INPUTS */
+.glass-input .q-field__control {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    backdrop-filter: blur(10px);
+}
+
+/* PRIMARY BUTTON */
+.glass-btn {
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+    transition: 0.3s ease;
+}
+
+.glass-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.8);
+}
+
+/* SECONDARY */
+.glass-btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    color: white;
+}
+
+/* LINKS */
+.link-btn {
+    color: #a78bfa;
+}
+
+/* ERROR */
+.glass-error {
+    background: rgba(255, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 0, 0, 0.2);
+}
+
+/* MUSIC WAVES */
+.wave-lines {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 50px;
+}
+
+.wave-lines div {
+    width: 6px;
+    border-radius: 999px;
+    background: linear-gradient(to top, #06b6d4, #a855f7);
+    animation: wave 1s infinite ease-in-out;
+}
+
+.wave-lines div:nth-child(1) {
+    height: 20px;
+}
+
+.wave-lines div:nth-child(2) {
+    height: 45px;
+    animation-delay: 0.2s;
+}
+.wave-lines div:nth-child(3) {
+    height: 28px;
+    animation-delay: 0.4s;
+}
+.auth-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(0, 153, 255, 0.15), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(255, 0, 150, 0.12), transparent 30%), #0b0f1a;
+}
+.auth-wrapper {
+    width: 100%;
+    max-width: 1200px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.left-panel {
+    min-height: 720px;
+    background: linear-gradient(135deg, rgba(0, 153, 255, 0.25), rgba(111, 66, 193, 0.25));
+}
+.right-panel {
+    padding: 50px 40px;
+}
+.form-container {
+    max-width: 460px;
+    margin: auto;
+}
+.gradient-text {
+    background: linear-gradient(90deg, #00c6ff, #7f5af0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.register-btn {
+    height: 54px;
+    background: linear-gradient(135deg, #00c6ff, #7f5af0);
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+.register-btn:hover {
+    transform: translateY(-2px);
+}
+
+.q-field--outlined .q-field__control {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: white;
+    min-height: 58px;
+}
+
+.q-field__label,
+.q-field__native,
+.q-icon {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 1023px) {
+    .left-panel {
+        min-height: 240px;
+    }
+
+    .right-panel {
+        padding: 30px 20px;
+    }
+}
+@keyframes wave {
+    0%,
+    100% {
+        transform: scaleY(1);
+    }
+
+    50% {
+        transform: scaleY(1.4);
+    }
+}
+/* MOBILE */
+@media (max-width: 768px) {
+    .music-side {
+        min-height: 260px;
+    }
+}
+.payment-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(0, 153, 255, 0.15), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(138, 43, 226, 0.12), transparent 30%), #090d16;
+}
+.payment-wrapper {
+    width: 100%;
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 40px;
+    align-items: center;
+}
+.payment-info {
+    padding: 20px;
+}
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 22px;
+    font-size: 16px;
+    font-weight: 500;
+}
+.payment-cards {
+    width: 100%;
+    max-width: 100%;
+    padding: 40px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+
+    border-radius: 6px;
+
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+    .payment-cards {
+        padding: 20px 16px;
+        border-radius: 16px;
+    }
+}
+.pay-btn-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 8px;
+}
+
+.pay-btn {
+    width: 100%;
+    max-width: 420px; /* keeps it neat on desktop */
+    height: 54px;
+    border-radius: 14px;
+
+    background: linear-gradient(135deg, #00c6ff, #7f5af0);
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 600px) {
+    .pay-btn-wrapper {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .pay-btn {
+        max-width: 100%;
+        height: 48px;
+        font-size: 14px;
+    }
+}
+.status-box {
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dialog-card {
+    background: #0b0f1a;
+}
+.dialog-bar {
+    height: 60px;
+    background: rgba(255, 255, 255, 0.06);
+    color: white;
+    backdrop-filter: blur(20px);
+}
+.dialog-content {
+    height: calc(100vh - 60px);
+    padding: 0;
+}
+.payment-iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: white;
+}
+/* .q-field--outlined .q-field__control {
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 58px;
+} */
+
+.q-field__native,
+.q-field__label,
+.q-icon {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 1023px) {
+    .payment-wrapper {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .payment-info {
+        text-align: center;
+        padding-bottom: 0;
+    }
+
+    .feature-item {
+        justify-content: center;
+    }
+
+    .payment-cards {
+        padding: 24px;
+        border-radius: 24px;
+    }
+}
+
+@media (max-width: 600px) {
+    .payment-page {
+        padding: 14px;
+    }
+
+    .payment-cards {
+        padding: 20px;
+    }
+
+    .payment-info .text-h3 {
+        font-size: 34px;
+    }
+
+    .feature-item {
+        font-size: 14px;
+    }
+}
+.otp-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(0, 153, 255, 0.14), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(127, 90, 240, 0.12), transparent 30%), #090d16;
+}
+
+.otp-wrapper {
+    width: 100%;
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 1fr 470px;
+    gap: 40px;
+    align-items: center;
+}
+
+.otp-info {
+    padding: 20px;
+}
+
+.steps-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.step-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #00c6ff, #7f5af0);
+    color: white;
+    font-weight: bold;
+}
+
+.step-title {
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.step-text {
+    color: rgba(255, 255, 255, 0.65);
+    margin-top: 4px;
+}
+
+/* .payment-cards {
+    padding: 40px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+} */
+
+.message-box {
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.otp-note {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 15px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.action-btn {
+    height: 56px;
+    background: linear-gradient(135deg, #00c6ff, #7f5af0);
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+}
+
+.q-field--outlined .q-field__control {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    min-height: 58px;
+}
+
+.q-field__native,
+.q-field__label,
+.q-icon {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 1023px) {
+    .otp-wrapper {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .otp-info {
+        text-align: center;
+    }
+
+    .step-item {
+        justify-content: center;
+        text-align: left;
+    }
+
+    .payment-cards {
+        padding: 24px;
+        border-radius: 24px;
+    }
+}
+
+@media (max-width: 600px) {
+    .otp-page {
+        padding: 14px;
+    }
+
+    .payment-cards {
+        padding: 20px;
+    }
+
+    .otp-info .text-h3 {
+        font-size: 34px;
+    }
+
+    .step-item {
+        align-items: center;
+    }
+}
+.tabs-page {
+    min-height: 100vh;
+
+    background:
+        radial-gradient(circle at top left, rgba(0, 153, 255, 0.14), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(127, 90, 240, 0.12), transparent 30%), #090d16;
+}
+
+.tabs-wrapper {
+    width: 100%;
+    max-width: 1400px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: 290px 1fr;
+
+    gap: 24px;
+}
+
+.tabs-sidebar {
+    padding: 24px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+    height: fit-content;
+}
+
+.sidebar-header {
+    margin-bottom: 24px;
+}
+
+/* TABS */
+.glass-tabs {
+    gap: 12px;
+}
+
+.custom-tab {
+    justify-content: flex-start;
+    margin-bottom: 12px;
+    min-height: 62px;
+    border-radius: 18px;
+    padding: 0 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.72);
+    transition: all 0.3s ease;
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+    .glass-tabs {
+        width: 100%;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 4px;
+    }
+
+    .custom-tab {
+        min-height: 42px;
+        min-width: 42px;
+        margin-bottom: 0;
+        border-radius: 12px;
+        padding: 0;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .custom-tab .q-icon {
+        font-size: 18px;
+    }
+
+    .custom-tab .q-tab__content {
+        gap: 0;
+    }
+}
+
+.custom-tab:hover {
+    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.custom-tab.q-tab--active {
+    background: linear-gradient(135deg, rgba(0, 198, 255, 0.28), rgba(127, 90, 240, 0.28));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+}
+
+.tabs-content {
+    min-width: 0;
+}
+
+.glass-panels {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+    overflow: hidden;
+}
+
+.panel-bg {
+    background: transparent;
+    padding: 12px 12px;
+}
+
+/* MOBILE */
+@media (max-width: 1023px) {
+    .tabs-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .tabs-sidebar {
+        padding: 16px;
+    }
+
+    .glass-tabs {
+        flex-direction: row;
+    }
+
+    .q-tabs__content {
+        display: flex;
+        gap: 12px;
+    }
+
+    .custom-tab {
+        flex: 1;
+        margin-bottom: 0;
+        min-height: 56px;
+        justify-content: center;
+    }
+
+    .custom-tab:hover {
+        transform: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .tabs-page {
+        padding: 12px;
+    }
+
+    .tabs-sidebar,
+    .glass-panels {
+        border-radius: 22px;
+    }
+
+    .custom-tab {
+        font-size: 12px;
+    }
+}
+
+/* =========================
+   SHARED RESPONSIVE OVERRIDES
+   ========================= */
+:root {
+    color-scheme: dark;
+    --app-radius: 1rem;
+    --app-padding: clamp(0.75rem, 2.5vw, 1.25rem);
+    --touch-target: 2.75rem;
+}
+
+html,
+body,
+#q-app {
+    min-height: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+img,
+video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+body {
+    font-size: 16px;
+}
+
+.q-page,
+.q-page-container,
+.q-layout,
+.q-drawer__content {
+    min-height: 100%;
+}
+
+.q-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.q-card,
+.q-dialog__inner > div,
+.q-menu,
+.q-tooltip {
+    max-width: min(100vw - 1.5rem, 100%);
+}
+
+.q-dialog__inner {
+    padding: 0.75rem;
+}
+
+.q-dialog__inner > div {
+    max-height: calc(100vh - 1.5rem);
+    overflow: auto;
+}
+
+.q-btn {
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
+}
+
+.q-field__control {
+    min-height: 3rem;
+}
+
+.q-scrollarea__content {
+    padding-bottom: 1rem;
+}
+
+.q-list {
+    padding: 0.25rem 0;
+}
+
+.glass-card,
+.auth-wrapper,
+.payment-cards,
+.tabs-sidebar,
+.glass-panels,
+.glass-filter {
+    overflow: hidden;
+}
+
+.glass-header-main .q-toolbar {
+    min-height: 3.5rem;
+    padding-inline: 0.75rem;
+}
+
+.glass-drawer {
+    width: min(86vw, 17.5rem);
+}
+
+.glass-drawer .q-item {
+    min-height: 3rem;
+    border-radius: 0.875rem;
+    margin: 0.2rem 0.35rem;
+}
+
+.glass-drawer .q-item__section--avatar {
+    min-width: 2.75rem;
+}
+
+.login-page {
+    padding: clamp(0.75rem, 2.5vw, 1.5rem);
+}
+
+.login-wrapper {
+    width: min(100%, 68rem);
+    margin: 0 auto;
+    border-radius: clamp(1rem, 3vw, 1.5rem);
+}
+
+.music-side {
+    min-height: clamp(15rem, 35vh, 24rem);
+    padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.music-glow {
+    width: min(17rem, 70vw);
+    height: min(17rem, 70vw);
+}
+
+.login-logo {
+    width: min(10.625rem, 48vw);
+    max-width: 10.625rem;
+}
+
+.payment-page {
+    padding: clamp(0.9rem, 2.5vw, 1.5rem);
+}
+
+.payment-wrapper {
+    width: min(100%, 78rem);
+    margin: 0 auto;
+}
+
+.payment-cards,
+.payment-info,
+.tabs-sidebar,
+.glass-panels {
+    min-width: 0;
+}
+
+.payment-cards .q-input,
+.payment-cards .q-select,
+.payment-cards .q-btn,
+.auth-wrapper .q-input,
+.auth-wrapper .q-select {
+    width: 100%;
+}
+
+@media (max-width: 1023px) {
+    .auth-wrapper,
+    .payment-wrapper,
+    .tabs-wrapper {
+        width: 100%;
+    }
+
+    .tabs-wrapper {
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .login-page,
+    .auth-page,
+    .payment-page,
+    .tabs-page {
+        padding: 0.75rem;
+    }
+
+    .music-side {
+        min-height: 14rem;
+    }
+
+    .left-panel {
+        min-height: 13rem;
+    }
+
+    .right-panel {
+        padding: 1.25rem 1rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .glass-card,
+    .auth-wrapper,
+    .payment-cards,
+    .tabs-sidebar,
+    .glass-panels {
+        border-radius: 1rem;
+    }
+
+    .q-dialog__inner {
+        padding: 0.5rem;
+    }
+}

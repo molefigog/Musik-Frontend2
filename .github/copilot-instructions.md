@@ -1,0 +1,1 @@
+Do not search external web tools or run terminal commands unless explicitly asked.
