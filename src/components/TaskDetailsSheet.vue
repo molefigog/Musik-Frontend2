@@ -46,6 +46,8 @@
             </q-card-section>
 
             <q-card-actions align="right">
+                <q-btn v-if="!task.is_paid" flat color="primary" icon="add_shopping_cart" label="Add to cart"
+                    :disable="!canAddToCart" @click="addToCart" />
                 <q-btn flat label="Close" v-close-popup />
             </q-card-actions>
         </q-card>
@@ -54,7 +56,12 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useQuasar } from 'quasar'
+import { useCartStore } from 'src/stores/cart'
 import { getApiPath } from 'boot/api-config'
+
+const $q = useQuasar()
+const cart = useCartStore()
 
 const props = defineProps({
     modelValue: { type: Boolean, required: true },
@@ -76,6 +83,27 @@ const serviceLabel = computed(() => {
 const formattedDate = computed(() =>
     props.task ? new Date(props.task.created_at).toLocaleDateString() : ''
 )
+
+const canAddToCart = computed(() => props.task && !props.task.is_paid && Number(props.task.amount) > 0)
+
+function addToCart() {
+    if (!canAddToCart.value) return
+
+    const added = cart.addItem({
+        id: props.task.id,
+        name: props.task.title,
+        price: Number(props.task.amount),
+        service_type: props.task.service_type,
+        type: 'service',
+    }, 'service')
+
+    $q.notify({
+        type: added ? 'positive' : 'warning',
+        message: added
+            ? `${props.task.title} added to cart`
+            : 'Your cart already contains a different item type',
+    })
+}
 
 const stripApiPrefix = (path) => path.replace(/^\/api(?=\/|$)/i, '') || '/'
 

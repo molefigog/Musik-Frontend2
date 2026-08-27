@@ -101,20 +101,19 @@
             </q-list>
         </q-drawer>
 
-        <q-footer v-if="!isWeb" class="bg-transparent q-pb-sm">
-            <div class="row justify-around items-center q-px-sm">
-                <q-btn flat round dense icon="home" aria-label="Home" to="/" />
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
-                <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="notifications" aria-label="Notifications"
-                    to="/notifications">
-                    <q-badge v-if="unreadNotifications > 0" color="primary" floating>{{ unreadNotifications }}</q-badge>
-                </q-btn>
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="download" aria-label="Downloads" to="/downloads" />
-                <q-btn v-else flat round dense icon="login" aria-label="Login" to="/login" />
-            </div>
-        </q-footer>
+       <q-footer v-if="!isWeb" class="app-footer">
+    <div class="row justify-around items-center q-px-sm q-py-xs">
+        <q-btn flat round dense icon="home" aria-label="Home" to="/" />
+        <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
+        <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
+        <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
+        <q-btn v-if="auth.isLoggedIn" flat round dense icon="notifications" aria-label="Notifications" to="/notifications">
+            <q-badge v-if="unreadNotifications > 0" color="primary" floating>{{ unreadNotifications }}</q-badge>
+        </q-btn>
+        <q-btn v-if="auth.isLoggedIn" flat round dense icon="download" aria-label="Downloads" to="/downloads" />
+        <q-btn v-else flat round dense icon="login" aria-label="Login" to="/login" />
+    </div>
+</q-footer>
 
         <q-page-container>
             <router-view />

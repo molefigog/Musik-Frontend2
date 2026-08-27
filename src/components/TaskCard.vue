@@ -1,48 +1,52 @@
 <template>
-    <q-card flat :bordered="!isAudio || playing" :class="{ 'task-card-playing': isAudio && playing }">
-        <q-card-section class="task-card-section">
-            <div class="task-card-main">
-                <!-- Play (beat/recording) or Preview (artwork) -->
-                <q-btn v-if="isAudio" round color="primary" :icon="playing ? 'pause' : 'play_arrow'"
-                    :disable="!task.status" @click="togglePlay" />
-                <q-btn v-else round color="primary" icon="image" :disable="!task.status"
-                    @click="$emit('details', task)" />
+    <q-card flat bordered :class="{ 'task-card-playing': isAudio && playing }" class="task-card-compact">
+        <div class="task-card-grid">
+            <!-- Play button — spans both rows -->
+            <q-btn v-if="isAudio" round dense color="primary" :icon="playing ? 'pause' : 'play_arrow'"
+                :disable="!task.status" size="md" class="task-card-play" @click="togglePlay" />
+            <q-btn v-else round dense color="primary" icon="image" :disable="!task.status" size="md"
+                class="task-card-play" @click="$emit('details', task)" />
 
-                <div class="task-card-content">
-                    <div class="text-subtitle1 task-card-title">{{ task.title }}</div>
-                    <div class="text-caption text-grey">
-                        {{ serviceLabel }} · {{ formattedDate }}
-                    </div>
-                    <div class="text-caption" :class="task.is_paid ? 'text-positive' : 'text-warning'">
-                        {{ task.is_paid ? 'Paid' : 'Awaiting payment' }}
-                        <span v-if="task.amount"> · M{{ task.amount }}</span>
-                    </div>
+            <!-- Row 1: title -->
+            <div class="text-subtitle2 ellipsis task-card-title">{{ task.title }}</div>
 
-                    <div v-if="isAudio" class="audio-seek-wrap">
-                        <q-slider v-model="seekValue" :min="0" :max="duration || 0" :step="0.1"
-                            :disable="!task.status || !duration" color="primary" track-size="4px" thumb-size="16px" />
-                        <div class="audio-time text-caption text-grey-7">
-                            <span>{{ formattedCurrentTime }}</span>
-                            <span>{{ formattedDuration }}</span>
-                        </div>
-                    </div>
-                </div>
+            <!-- Row 1: mini player (progress only, no scrubbing) -->
+            <div class="task-card-player">
+                <q-linear-progress v-if="isAudio" :value="duration ? currentTime / duration : 0" color="primary"
+                    size="4px" rounded />
             </div>
 
-            <div class="task-card-actions">
-                <q-badge :color="task.status ? 'positive' : 'grey-6'">
-                    {{ task.status ? 'Completed' : 'Processing' }}
-                </q-badge>
+            <!-- Row 1: 3-dot menu -->
+            <q-btn flat dense round icon="more_vert" size="sm" class="task-card-menu" @click="$emit('details', task)" />
 
-                <q-btn flat dense label="Details" @click="$emit('details', task)" />
-
-                <q-btn flat round icon="download" :disable="!task.status || downloading" :loading="downloading"
-                    @click="download" />
+            <div class="text-caption task-card-status" :class="{
+                'text-warning': !task.is_paid,
+                'text-info': task.is_paid && task.status !== 'completed',
+                'text-positive': task.status === 'completed'
+            }">
+                {{
+                    !task.is_paid
+                        ? 'Awaiting payment'
+                        : task.status === 'completed'
+                            ? 'Completed'
+                : 'Processing'
+                }}
             </div>
-        </q-card-section>
 
-        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" @timeupdate="onTimeUpdate" @loadedmetadata="onLoadedMetadata"
-            @play="playing = true" @pause="playing = false" @ended="handleEnded" class="hidden" />
+            <!-- Row 2: date -->
+            <div class="text-caption text-grey task-card-date">{{ formattedDate }}
+
+                <q-btn v-if="!task.is_paid" flat dense size="sm" icon="add_shopping_cart" :disable="!canAddToCart"
+                    @click="addToCart" />
+            </div>
+            <!-- Row 2: download -->
+            <q-btn flat dense round icon="download" size="sm" class="task-card-download"
+                :disable="!task.status || downloading" :loading="downloading" @click="download" />
+        </div>
+
+        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" @timeupdate="onTimeUpdate"
+            @loadedmetadata="onLoadedMetadata" @play="playing = true" @pause="playing = false" @ended="handleEnded"
+            class="hidden" />
     </q-card>
 </template>
 
@@ -52,8 +56,10 @@ import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { useQuasar } from 'quasar'
 import { getApiPath } from 'boot/api-config'
+import { useCartStore } from 'src/stores/cart'
 
 const $q = useQuasar()
+const cart = useCartStore()
 
 const ANDROID_DOWNLOAD_DIR = 'Download'
 
@@ -105,30 +111,50 @@ const duration = ref(0)
 
 const isAudio = computed(() => ['beat', 'recording'].includes(props.task.service_type))
 
-const serviceLabel = computed(() => {
-    const labels = { beat: 'Beat', recording: 'Recording', artwork: 'Artwork' }
-    return labels[props.task.service_type] ?? props.task.service_type
-})
+// const serviceLabel = computed(() => {
+//     const labels = { beat: 'Beat', recording: 'Recording', artwork: 'Artwork' }
+//     return labels[props.task.service_type] ?? props.task.service_type
+// })
 
 const formattedDate = computed(() =>
     new Date(props.task.created_at).toLocaleDateString()
 )
 
-const seekValue = computed({
-    get: () => currentTime.value,
-    set: (value) => seekTo(value)
-})
+// const seekValue = computed({
+//     get: () => currentTime.value,
+//     set: (value) => seekTo(value)
+// })
 
-const formattedCurrentTime = computed(() => formatTime(currentTime.value))
-const formattedDuration = computed(() => formatTime(duration.value))
+// const formattedCurrentTime = computed(() => formatTime(currentTime.value))
+// const formattedDuration = computed(() => formatTime(duration.value))
+const canAddToCart = computed(() => !props.task.is_paid && Number(props.task.amount) > 0)
 
-function formatTime(value) {
-    if (!Number.isFinite(value) || value < 0) return '0:00'
-    const wholeSeconds = Math.floor(value)
-    const minutes = Math.floor(wholeSeconds / 60)
-    const seconds = String(wholeSeconds % 60).padStart(2, '0')
-    return `${minutes}:${seconds}`
+function addToCart() {
+    if (!canAddToCart.value) return
+
+    const added = cart.addItem({
+        id: props.task.id,
+        name: props.task.title,
+        price: Number(props.task.amount),
+        service_type: props.task.service_type,
+        type: 'service',
+    }, 'service')
+
+    $q.notify({
+        type: added ? 'positive' : 'warning',
+        message: added
+            ? `${props.task.title} added to cart`
+            : 'Your cart already contains a different item type',
+    })
 }
+
+// function formatTime(value) {
+//     if (!Number.isFinite(value) || value < 0) return '0:00'
+//     const wholeSeconds = Math.floor(value)
+//     const minutes = Math.floor(wholeSeconds / 60)
+//     const seconds = String(wholeSeconds % 60).padStart(2, '0')
+//     return `${minutes}:${seconds}`
+// }
 
 function onLoadedMetadata() {
     duration.value = audioEl.value?.duration || 0
@@ -138,13 +164,13 @@ function onTimeUpdate() {
     currentTime.value = audioEl.value?.currentTime || 0
 }
 
-function seekTo(value) {
-    if (!audioEl.value || !Number.isFinite(value)) return
-    const max = duration.value || audioEl.value.duration || 0
-    const clamped = Math.min(Math.max(value, 0), max)
-    audioEl.value.currentTime = clamped
-    currentTime.value = clamped
-}
+// function seekTo(value) {
+//     if (!audioEl.value || !Number.isFinite(value)) return
+//     const max = duration.value || audioEl.value.duration || 0
+//     const clamped = Math.min(Math.max(value, 0), max)
+//     audioEl.value.currentTime = clamped
+//     currentTime.value = clamped
+// }
 
 function handleEnded() {
     playing.value = false
@@ -284,64 +310,55 @@ async function download() {
 </script>
 
 <style scoped>
-.task-card-section {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+.task-card-compact {
+    width: 344px;
+    height: 80px;
 }
 
-.task-card-main {
-    display: flex;
+.task-card-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr auto;
+    grid-template-rows: 1fr 1fr;
     align-items: center;
-    gap: 12px;
-    min-width: 0;
-    flex: 1 1 auto;
+    column-gap: 8px;
+    row-gap: 2px;
+    height: 100%;
+    padding: 8px 10px;
 }
 
-.task-card-content {
-    min-width: 0;
+.task-card-play {
+    grid-row: 1 / span 2;
+    grid-column: 1;
 }
 
 .task-card-title {
-    word-break: break-word;
+    grid-row: 1;
+    grid-column: 2;
 }
 
-.task-card-playing {
-    border-color: rgba(25, 118, 210, 0.85);
-    box-shadow: 0 0 0 1px rgba(25, 118, 210, 0.22);
+.task-card-player {
+    grid-row: 1;
+    grid-column: 3;
+    min-width: 0;
 }
 
-.audio-seek-wrap {
-    margin-top: 6px;
+.task-card-menu {
+    grid-row: 1;
+    grid-column: 4;
 }
 
-.audio-time {
-    display: flex;
-    justify-content: space-between;
-    margin-top: -6px;
+.task-card-status {
+    grid-row: 2;
+    grid-column: 2;
 }
 
-.task-card-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 0 0 auto;
+.task-card-date {
+    grid-row: 2;
+    grid-column: 3;
 }
 
-@media (max-width: 600px) {
-    .task-card-section {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .task-card-main {
-        align-items: flex-start;
-    }
-
-    .task-card-actions {
-        width: 100%;
-        justify-content: space-between;
-    }
+.task-card-download {
+    grid-row: 2;
+    grid-column: 4;
 }
 </style>

@@ -17,6 +17,8 @@ const description = computed(() => {
     return `${cart.count} ${noun}`
 })
 
+const serviceType = computed(() => cart.items[0]?.service_type || '')
+
 const mpesaEndpoint = computed(() =>
     cart.itemType === 'music' ? 'v1/payments/mpesa/music' : 'v1/payments/mpesa/services'
 )
@@ -146,7 +148,8 @@ onMounted(() => {
                 Total: M{{ cart.total }}
             </div>
 
-            <PaymentGateways :amount="cart.total" :description="description" :item-id="cart.itemIds"
+            <PaymentGateways :amount="cart.total" :description="description" :service-type="serviceType"
+                :item-id="cart.itemIds"
                 :item-type="cart.itemType" :mpesa-endpoint="mpesaEndpoint"
                 :paypal-create-order-endpoint="paypalCreateOrderEndpoint"
                 :paypal-capture-order-endpoint="paypalCaptureOrderEndpoint" @success="onPaid" @error="onPaymentError" />

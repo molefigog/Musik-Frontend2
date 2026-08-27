@@ -77,6 +77,7 @@ export const useCartStore = defineStore('cart', {
           id: item.id,
           name: item.name,
           price: item.price,
+          service_type: item.service_type,
           quantity: 1,
         })
       }
@@ -87,7 +88,13 @@ export const useCartStore = defineStore('cart', {
 
     replaceWith(item, itemType) {
       const resolvedType = itemType || item?.type || this.itemType
-      this.items = [{ id: item.id, name: item.name, price: item.price, quantity: 1 }]
+      this.items = [{
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        service_type: item.service_type,
+        quantity: 1,
+      }]
       this.itemType = resolvedType
       this.persist()
     },

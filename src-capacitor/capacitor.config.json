@@ -6,6 +6,9 @@
     "StatusBar": {
       "overlaysWebView": false,
       "style": "DARK"
+    },
+    "Keyboard": {
+      "resize": "none"
     }
   }
 }

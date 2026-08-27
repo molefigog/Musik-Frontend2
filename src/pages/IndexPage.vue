@@ -17,22 +17,14 @@
                 <!-- <q-btn flat dense no-caps class="header-btn" icon="favorite_border" label="Saved" /> -->
                 <!-- <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart" /> -->
 
-                <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart"
+                <!-- <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart"
                     :to="{ name: 'cart-checkout' }" :size="$q.screen.gt.sm ? 'md' : 'sm'">
                     <q-badge v-if="cart.count > 0" color="red" floating>{{ cart.count }}</q-badge>
-                </q-btn>
+                </q-btn> -->
             </div>
         </div>
 
-        <!-- FILTER BAR -->
-        <div class="filter-bar">
-            <div class="filter-search-wrap">
-                <q-icon name="search" size="14px" color="grey-6" />
-                <span class="filter-placeholder">Search tracks, artists, albums…</span>
-            </div>
-            <q-chip v-for="pill in filterPills" :key="pill" class="filter-chip" dense>{{ pill }}</q-chip>
-        </div>
-
+    
         <!-- TRACK LIST HEADER -->
         <div class="track-list-header">
             <span class="col-num">#</span>

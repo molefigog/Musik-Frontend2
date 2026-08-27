@@ -23,7 +23,18 @@
                 <q-card-section class="q-pt-none">
                     <q-form @submit.prevent="submitCreateTask" class="column q-gutter-sm">
                         <q-select v-model="newTask.service_type" :options="serviceOptions" label="Service type"
-                            emit-value map-options outlined required />
+                            emit-value map-options outlined required>
+                            <template #option="scope">
+                                <q-item v-bind="scope.itemProps">
+                                    <q-item-section>
+                                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                                    </q-item-section>
+                                    <q-item-section side v-if="scope.opt.price">
+                                        <q-chip dense color="primary" text-color="white">R{{ scope.opt.price }}</q-chip>
+                                    </q-item-section>
+                                </q-item>
+                            </template>
+                        </q-select>
 
                         <q-input v-model="newTask.title" label="Title" outlined required />
                         <q-input v-model="newTask.details" label="Details" type="textarea" outlined autogrow />
@@ -41,10 +52,11 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { useTasksStore } from 'src/stores/tasks'
 import tasksApi from 'src/services/tasks-api'
+import servicePricesApi from 'src/services/service-prices-api'
 import TaskCard from 'components/TaskCard.vue'
 import TaskDetailsSheet from 'components/TaskDetailsSheet.vue'
 
@@ -63,11 +75,32 @@ const newTask = ref({
 const TASK_POLL_INTERVAL_MS = 20000
 let tasksPollTimer = null
 
-const serviceOptions = [
+const baseServiceOptions = [
     { label: 'Beat', value: 'beat' },
     { label: 'Recording', value: 'recording' },
     { label: 'Artwork', value: 'artwork' },
 ]
+
+const servicePrices = ref({}) // { beat: '150.00', recording: '300.00', ... }
+
+const serviceOptions = computed(() =>
+    baseServiceOptions.map((opt) => ({
+        ...opt,
+        price: servicePrices.value[opt.value] ?? null,
+    }))
+)
+async function loadServicePrices() {
+  try {
+    const { data } = await servicePricesApi.getPrices()
+    servicePrices.value = data.reduce((acc, row) => {
+      acc[row.service_type] = row.amount
+      return acc
+    }, {})
+  } catch (error) {
+    console.error('Service prices error:', error?.response?.status, error?.response?.data, error.message)
+    $q.notify({ type: 'warning', message: 'Could not load service prices' })
+  }
+}
 
 function openDetails(task) {
     selectedTask.value = task
@@ -91,7 +124,7 @@ async function submitCreateTask() {
         })
         tasksStore.tasks = [data.data ?? data, ...tasksStore.tasks]
         createDialogOpen.value = false
-        $q.notify({ type: 'positive', message: 'Task created. Pricing will be set by the team.' })
+        $q.notify({ type: 'positive', message: 'Task created.' })
     } catch (error) {
         $q.notify({ type: 'negative', message: error?.response?.data?.message || 'Failed to create task' })
     } finally {
@@ -101,6 +134,7 @@ async function submitCreateTask() {
 
 onMounted(() => {
     tasksStore.fetchTasks()
+    loadServicePrices()
     tasksPollTimer = window.setInterval(() => {
         tasksStore.fetchTasks()
     }, TASK_POLL_INTERVAL_MS)

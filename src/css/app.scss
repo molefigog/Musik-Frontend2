@@ -30,7 +30,13 @@
     background: var(--bg-primary);
     color: var(--text-primary);
 }
-
+.app-footer {
+  background: rgba(18, 18, 18, 0.6); // adjust to your theme color
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px); // iOS needs the prefix
+  padding-bottom: env(safe-area-inset-bottom, 0px); // avoid home-indicator overlap
+  border-top: 1px solid rgba(255, 255, 255, 0.08); // subtle separation, optional
+}
 /* HEADER */
 .glass-header-main {
     background: var(--bg-secondary);
