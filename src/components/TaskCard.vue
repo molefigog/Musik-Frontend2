@@ -21,15 +21,15 @@
 
             <div class="text-caption task-card-status" :class="{
                 'text-warning': !task.is_paid,
-                'text-info': task.is_paid && task.status !== 'completed',
-                'text-positive': task.status === 'completed'
+                'text-info': task.is_paid && !task.status,
+                'text-positive': task.status
             }">
                 {{
                     !task.is_paid
                         ? 'Awaiting payment'
-                        : task.status === 'completed'
+                        : task.status
                             ? 'Completed'
-                : 'Processing'
+                            : 'Processing'
                 }}
             </div>
 
@@ -44,7 +44,7 @@
                 :disable="!task.status || downloading" :loading="downloading" @click="download" />
         </div>
 
-        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" @timeupdate="onTimeUpdate"
+        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" preload="none" @timeupdate="onTimeUpdate"
             @loadedmetadata="onLoadedMetadata" @play="playing = true" @pause="playing = false" @ended="handleEnded"
             class="hidden" />
     </q-card>

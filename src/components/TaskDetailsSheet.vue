@@ -8,39 +8,43 @@
 
             <q-separator />
 
-            <q-card-section class="q-gutter-sm">
-                <div>
-                    <div class="text-caption text-grey">Description</div>
-                    <div>{{ task.details || 'No description provided.' }}</div>
-                </div>
+            <q-card-section>
+                <div class="row q-col-gutter-sm">
+                    <div class="col-12">
+                        <div class="text-caption text-grey">Description</div>
+                        <div>{{ task.details || 'No description provided.' }}</div>
+                    </div>
 
-                <div>
-                    <div class="text-caption text-grey">Created</div>
-                    <div>{{ formattedDate }}</div>
-                </div>
+                    <div class="col-6">
+                        <div class="text-caption text-grey">Created</div>
+                        <div>{{ formattedDate }}</div>
+                    </div>
 
-                <div>
-                    <div class="text-caption text-grey">Status</div>
-                    <q-badge :color="task.status ? 'positive' : 'grey-6'">
-                        {{ task.status ? 'Completed' : 'Processing' }}
-                    </q-badge>
-                </div>
+                    <div class="col-6">
+                        <div class="text-caption text-grey">Status</div>
+                        <q-badge :color="task.status ? 'positive' : 'grey-6'">
+                            {{ task.status ? 'Completed' : 'Processing' }}
+                        </q-badge>
+                    </div>
 
-                <div>
-                    <div class="text-caption text-grey">Payment</div>
-                    <q-badge :color="task.is_paid ? 'positive' : 'warning'">
-                        {{ task.is_paid ? 'Paid' : 'Awaiting payment' }}
-                    </q-badge>
-                    <span v-if="task.amount" class="q-ml-sm">M{{ task.amount }}</span>
-                </div>
+                    <div class="col-6">
+                        <div class="text-caption text-grey">Payment</div>
+                        <div>
+                            <q-badge :color="task.is_paid ? 'positive' : 'warning'">
+                                {{ task.is_paid ? 'Paid' : 'Awaiting payment' }}
+                            </q-badge>
+                            <span v-if="task.amount" class="q-ml-sm">M{{ task.amount }}</span>
+                        </div>
+                    </div>
 
-                <div v-if="task.status">
-                    <div class="text-caption text-grey">Available files</div>
-                    <div class="q-gutter-xs">
-                        <q-btn v-if="task.file_url" dense flat color="primary" icon="download" label="Download"
-                            @click="downloadFile" />
-                        <q-btn v-if="task.preview_url" dense flat color="secondary" icon="visibility" label="Preview"
-                            @click="openPreview" />
+                    <div v-if="task.status" class="col-6">
+                        <div class="text-caption text-grey">Available files</div>
+                        <div class="q-gutter-xs">
+                            <q-btn v-if="task.file_url" dense flat color="primary" icon="download" label="Download"
+                                @click="downloadFile" />
+                            <q-btn v-if="task.preview_url" dense flat color="secondary" icon="visibility"
+                                label="Preview" @click="openPreview" />
+                        </div>
                     </div>
                 </div>
             </q-card-section>
