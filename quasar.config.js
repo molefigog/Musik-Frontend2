@@ -86,23 +86,23 @@ export default defineConfig((/* ctx */) => {
         // loading: true,
         // loadingBar: true
         capacitor: {
-          androidStatusBarPadding: false // the WebView is kept below the status bar
+          androidStatusBarPadding: false, // the WebView is kept below the status bar
         },
 
         notify: {
-          position: 'bottom',       // Android snackbars always appear at the bottom
-          color: 'grey-10',         // Dark charcoal background (#323232 equivalent)
-          textColor: 'white',       // White body text
-          timeout: 4000,            // Android guidelines recommend 4 to 10 seconds
+          position: 'bottom', // Android snackbars always appear at the bottom
+          color: 'grey-10', // Dark charcoal background (#323232 equivalent)
+          textColor: 'white', // White body text
+          timeout: 4000, // Android guidelines recommend 4 to 10 seconds
           classes: 'android-snackbar', // Custom class for layout adjustments
           actions: [
             {
-              label: 'DISMISS',     // Uppercase text for Android action buttons
-              color: 'amber',       // Vibrant accent color for actions
-              handler: () => { }
-            }
-          ]
-        }
+              label: 'DISMISS', // Uppercase text for Android action buttons
+              color: 'amber', // Vibrant accent color for actions
+              handler: () => {},
+            },
+          ],
+        },
       },
 
       // iconSet: 'material-icons', // Quasar icon set
@@ -131,7 +131,7 @@ export default defineConfig((/* ctx */) => {
 
     // animations: 'all', // --- includes all animations
     // https://v2.quasar.dev/options/animations
-    animations: [],
+    animations: 'all',
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#sourcefiles
     // sourceFiles: {

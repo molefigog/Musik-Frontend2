@@ -363,386 +363,106 @@ onMounted(fetchDownloads)
 </script>
 
 <template>
-    <q-page class="store-page text-white overflow-hidden">
-        <div class="store-header">
-            <div class="brand-block">
-                <div class="brand-icon">
-                    <q-icon name="download" size="18px" color="white" />
-                </div>
+    <q-page class="text-white overflow-hidden">
+        <!-- HEADER -->
+        <q-toolbar class="bg-grey-10 q-px-md q-py-sm border-bottom">
+            <div class="row items-center q-gutter-sm">
+                <q-icon name="download" size="18px" />
                 <div>
-                    <div class="brand-name">My Downloads</div>
-                    <div class="brand-sub">Purchased Music Library</div>
+                    <div class="text-subtitle1 text-weight-bold">My Downloads</div>
+                    <div class="text-caption text-grey-4">Purchased Music Library</div>
                 </div>
             </div>
+            <q-space />
+            <q-btn flat dense no-caps icon="refresh" label="Refresh" @click="fetchDownloads" />
+        </q-toolbar>
 
-            <div class="header-actions">
-                <q-btn flat dense no-caps class="header-btn" icon="refresh" label="Refresh" @click="fetchDownloads" />
-            </div>
-        </div>
+        <!-- FILTER BAR -->
+        <q-toolbar class="bg-grey-10 q-px-md q-py-sm">
+            <q-input v-model="search" borderless dense dark placeholder="Search in your purchased tracks" class="col"
+                prefix-icon="search" />
+            <q-chip dense color="primary" text-color="white">{{ filteredDownloads.length }} track(s)</q-chip>
+        </q-toolbar>
 
-        <div class="filter-bar">
-            <div class="filter-search-wrap">
-                <q-icon name="search" size="14px" color="grey-6" />
-                <q-input v-model="search" borderless dense dark placeholder="Search in your purchased tracks"
-                    class="download-search-input" />
-            </div>
+        <!-- COLUMN HEADERS (Desktop only) -->
+        <q-toolbar class="gt-xs text-grey-6 text-caption bg-grey-10 q-px-md">
+            <span style="flex: 0 0 40px">#</span>
+            <span style="flex: 0 0 40px"></span>
+            <span style="flex: 1">Title</span>
+            <span style="flex: 1">Playback</span>
+            <span style="flex: 0 0 100px">Genre</span>
+            <span style="flex: 0 0 100px">Paid</span>
+            <span style="flex: 0 0 40px"></span>
+        </q-toolbar>
 
-            <q-chip class="filter-chip" dense>{{ filteredDownloads.length }} track(s)</q-chip>
-        </div>
-
-        <div class="track-list-header">
-            <span class="col-num">#</span>
-            <span></span>
-            <span class="col-title">Title</span>
-            <span class="col-wave">Playback</span>
-            <span class="col-genre">Genre</span>
-            <span class="col-price">Paid</span>
-            <span></span>
-        </div>
-
-        <div v-if="loading" class="flex flex-center q-pa-xl">
+        <!-- LOADING -->
+        <div v-if="loading" class="q-pa-xl flex flex-center">
             <q-spinner color="primary" size="40px" />
         </div>
 
-        <div v-else-if="filteredDownloads.length" class="track-list">
-            <div v-for="(item, index) in filteredDownloads" :key="item.music_id" class="track-row"
-                :class="{ 'track-playing': currentId === item.music_id }">
-                <span class="col-num">
-                    <q-icon v-if="currentId === item.music_id && isPlaying" name="graphic_eq" size="14px"
-                        color="purple-4" />
-                    <span v-else class="track-num-text">{{ index + 1 }}</span>
-                </span>
+        <!-- TRACK LIST -->
+        <q-list v-else-if="filteredDownloads.length" separator>
+            <q-item v-for="(item, index) in filteredDownloads" :key="item.music_id">
+                <template #default>
+                    <div class="row full-width items-center q-gutter-md">
+                        <!-- Number/Icon -->
+                        <div style="flex: 0 0 40px" class="text-center">
+                            <q-icon v-if="currentId === item.music_id && isPlaying" name="graphic_eq" size="14px"
+                                color="purple-4" />
+                            <span v-else class="text-caption">{{ index + 1 }}</span>
+                        </div>
 
-                <div class="col-play">
-                    <q-btn round flat dense class="play-btn"
-                        :icon="currentId === item.music_id && isPlaying ? 'pause' : 'play_arrow'"
-                        :loading="loadingPlayMusicId === item.music_id" @click="playTrack(item)" />
-                </div>
+                        <!-- Play Button -->
+                        <q-btn round flat dense size="sm"
+                            :icon="currentId === item.music_id && isPlaying ? 'pause' : 'play_arrow'"
+                            :loading="loadingPlayMusicId === item.music_id" @click="playTrack(item)" />
 
-                <div class="col-title">
-                    <div class="track-title ellipsis">{{ item.title }}</div>
-                    <div class="track-release ellipsis">
-                        {{ item.release || 'No Release' }}
-                        <span v-if="item.duration"> • {{ item.duration }}</span>
-                        <span v-if="item.size"> • {{ item.size }} MB</span>
+                        <!-- Title & Info -->
+                        <div class="col column q-gutter-xs" style="min-width: 0">
+                            <div class="text-subtitle2 text-weight-medium ellipsis">{{ item.title }}</div>
+                            <div class="text-caption text-grey-5 ellipsis">
+                                {{ item.release || 'No Release' }}
+                                <span v-if="item.duration"> • {{ item.duration }}</span>
+                                <span v-if="item.size"> • {{ item.size }} MB</span>
+                            </div>
+                            <div class="text-caption text-grey-6 ellipsis">{{ filenameForItem(item) }}</div>
+                        </div>
+
+                        <!-- Waveform (Desktop) -->
+                        <div class="col gt-xs cursor-pointer" style="min-width: 100px" @click="seekTrack(item, $event)">
+                            <div class="bg-grey-9"
+                                style="height: 30px; position: relative; border-radius: 4px; overflow: hidden;">
+                                <div class="absolute"
+                                    :style="{ width: `${rowProgress(item) * 100}%`, height: '100%', backgroundColor: 'rgba(156, 39, 176, 0.5)' }" />
+                            </div>
+                            <div v-if="currentId === item.music_id" class="text-caption text-grey-6 q-mt-xs">
+                                {{ formatDuration(currentTime) }} / {{ formatDuration(duration) }}
+                            </div>
+                        </div>
+
+                        <!-- Genre (Desktop) -->
+                        <div class="gt-xs text-grey-5" style="flex: 0 0 100px">
+                            {{ item.genre || '—' }}
+                        </div>
+
+                        <!-- Price (Desktop) -->
+                        <div class="gt-xs text-right" style="flex: 0 0 100px">
+                            M{{ item.paid_amount }}
+                        </div>
+
+                        <!-- Download Button -->
+                        <q-btn round flat dense icon="download" :loading="downloadingMusicId === item.music_id"
+                            @click="downloadTrack(item)" />
                     </div>
-                    <div class="track-file ellipsis">{{ filenameForItem(item) }}</div>
-                </div>
+                </template>
+            </q-item>
+        </q-list>
 
-                <div class="col-wave">
-                    <div class="waveform-wrapper" @click="seekTrack(item, $event)">
-                        <div class="waveform-bg" />
-                        <div class="playhead" :style="{ width: `${rowProgress(item) * 100}%` }" />
-                    </div>
-                    <div class="playback-time" v-if="currentId === item.music_id">
-                        {{ formatDuration(currentTime) }} / {{ formatDuration(duration) }}
-                    </div>
-                </div>
-
-                <div class="col-genre">
-                    <span class="genre-tag">{{ item.genre || '—' }}</span>
-                </div>
-
-                <div class="col-price">
-                    <span class="price-tag">M{{ item.paid_amount }}</span>
-                </div>
-
-                <div class="col-action">
-                    <q-btn round flat dense icon="download" class="action-btn"
-                        :loading="downloadingMusicId === item.music_id" @click="downloadTrack(item)" />
-                </div>
-            </div>
-        </div>
-
-        <div v-else class="empty-state">
-            <q-icon name="library_music" size="40px" color="grey-7" />
-            <div class="empty-title">No purchased tracks found</div>
-            <div class="empty-sub">Complete a music payment, then come back here.</div>
+        <!-- EMPTY STATE -->
+        <div v-else class="q-pa-xl flex flex-center column">
+            <q-icon name="library_music" size="48px" color="grey-7" class="q-mb-md" />
+            <div class="text-h6">No purchased tracks found</div>
+            <div class="text-caption text-grey-5">Complete a music payment, then come back here.</div>
         </div>
     </q-page>
 </template>
-
-<style scoped>
-.store-page {
-    background: #0a0a0f;
-    min-height: 100vh;
-    padding-bottom: 1.5rem;
-}
-
-.store-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 10, 15, 0.98);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-}
-
-.brand-block {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    min-width: 0;
-}
-
-.brand-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.5rem;
-    background: #7c3aed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.brand-name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: #f3f4f6;
-}
-
-.brand-sub {
-    font-size: 0.65rem;
-    color: #4b5563;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.header-btn {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
-    color: #9ca3af !important;
-    border-radius: 0.5rem !important;
-    font-size: 0.75rem !important;
-    padding: 0.375rem 0.8rem !important;
-}
-
-.filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
-    background: rgba(12, 12, 18, 0.95);
-}
-
-.filter-search-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 0.5px solid rgba(255, 255, 255, 0.09);
-    border-radius: 0.5rem;
-    padding: 0.15rem 0.65rem;
-    min-width: min(100%, 14rem);
-    flex: 1 1 14rem;
-}
-
-.download-search-input {
-    width: 100%;
-}
-
-.filter-chip {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.09) !important;
-    color: #6b7280 !important;
-    border-radius: 0.5rem !important;
-    font-size: 0.7rem !important;
-}
-
-.track-list-header,
-.track-row {
-    display: grid;
-    grid-template-columns: 2rem 2.5rem minmax(0, 1fr) minmax(8rem, 10rem) minmax(4.5rem, 5rem) minmax(4rem, 4.5rem) 2.25rem;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0 1rem;
-}
-
-.track-list-header {
-    padding: 0.5rem 1rem 0.7rem;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #374151;
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
-}
-
-.track-list {
-    padding: 0.75rem 0.25rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.track-row {
-    padding: 0.7rem 1rem;
-    background: rgba(255, 255, 255, 0.025);
-    border: 0.5px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0.7rem;
-    transition: all 0.18s;
-    margin: 0 0.25rem;
-}
-
-.track-row:hover {
-    background: rgba(124, 58, 237, 0.07);
-    border-color: rgba(124, 58, 237, 0.2);
-}
-
-.track-row.track-playing {
-    background: rgba(124, 58, 237, 0.1);
-    border-color: rgba(124, 58, 237, 0.35);
-}
-
-.col-num {
-    font-size: 0.7rem;
-    color: #4b5563;
-    text-align: center;
-}
-
-.track-num-text {
-    font-variant-numeric: tabular-nums;
-}
-
-.play-btn {
-    width: 2.25rem !important;
-    height: 2.25rem !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.09) !important;
-    color: #9ca3af !important;
-}
-
-.track-playing .play-btn {
-    background: rgba(124, 58, 237, 0.22) !important;
-    border-color: rgba(124, 58, 237, 0.45) !important;
-    color: #c4b5fd !important;
-}
-
-.col-title {
-    min-width: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.track-title {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #e5e7eb;
-}
-
-.track-release,
-.track-file {
-    font-size: 0.7rem;
-    color: #4b5563;
-    margin-top: 0.15rem;
-}
-
-.waveform-wrapper {
-    position: relative;
-    height: 1.6rem;
-    border-radius: 0.45rem;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.04);
-    cursor: pointer;
-    border: 0.5px solid rgba(255, 255, 255, 0.06);
-}
-
-.waveform-bg {
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(90deg,
-            rgba(255, 255, 255, 0.15) 0,
-            rgba(255, 255, 255, 0.15) 2px,
-            transparent 2px,
-            transparent 6px),
-        linear-gradient(90deg, rgba(124, 58, 237, 0.06), rgba(124, 58, 237, 0.16));
-    opacity: 0.75;
-}
-
-.playhead {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 10;
-    background: rgba(124, 58, 237, 0.28);
-    border-right: 2px solid #a78bfa;
-    transition: width 0.05s linear;
-}
-
-.playback-time {
-    font-size: 0.63rem;
-    color: #9ca3af;
-    margin-top: 0.2rem;
-}
-
-.genre-tag {
-    font-size: 0.65rem;
-    color: #6b7280;
-    background: rgba(255, 255, 255, 0.05);
-    border: 0.5px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.35rem;
-    padding: 0.2rem 0.45rem;
-}
-
-.price-tag {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #34d399;
-    text-align: right;
-    display: block;
-}
-
-.action-btn {
-    color: #4b5563 !important;
-    background: transparent !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.07) !important;
-    border-radius: 0.45rem !important;
-}
-
-.empty-state {
-    min-height: 45vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    color: #9ca3af;
-}
-
-.empty-title {
-    font-size: 0.95rem;
-    color: #d1d5db;
-    font-weight: 600;
-}
-
-.empty-sub {
-    font-size: 0.78rem;
-    color: #6b7280;
-}
-
-@media (max-width: 900px) {
-    .track-list-header {
-        display: none;
-    }
-
-    .track-row {
-        grid-template-columns: 1.6rem 2.2rem minmax(0, 1fr) 2.3rem;
-        gap: 0.6rem;
-        padding: 0.7rem 0.75rem;
-    }
-
-    .col-wave,
-    .col-genre,
-    .col-price {
-        display: none;
-    }
-}
-</style>

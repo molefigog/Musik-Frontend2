@@ -83,7 +83,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <q-page class="tabs-page q-pa-md">
+    <q-page class="q-pa-md">
 
         <!-- <div v-if="cart.isEmpty" class="flex flex-center q-pa-xl column">
             <div class="text-grey-7 q-mb-md">Your cart is empty</div>
@@ -149,8 +149,7 @@ onMounted(() => {
             </div>
 
             <PaymentGateways :amount="cart.total" :description="description" :service-type="serviceType"
-                :item-id="cart.itemIds"
-                :item-type="cart.itemType" :mpesa-endpoint="mpesaEndpoint"
+                :item-id="cart.itemIds" :item-type="cart.itemType" :mpesa-endpoint="mpesaEndpoint"
                 :paypal-create-order-endpoint="paypalCreateOrderEndpoint"
                 :paypal-capture-order-endpoint="paypalCaptureOrderEndpoint" @success="onPaid" @error="onPaymentError" />
 

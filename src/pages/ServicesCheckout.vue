@@ -84,7 +84,7 @@ onMounted(fetchService)
 </script>
 
 <template>
-    <q-page class="tabs-page q-pa-md">
+    <q-page class="q-pa-md">
 
         <div v-if="loading" class="flex flex-center q-pa-xl">
             <q-spinner size="40px" color="primary" />

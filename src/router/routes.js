@@ -21,12 +21,12 @@ const routes = [
                 meta: { title: 'Task', requiresAuth: true },
                 component: () => import('pages/TasksPage.vue'),
             },
-            // {
-            //     path: '/task/:id',
-            //     name: 'Task',
-            //     meta: { title: 'Task' },
-            //     component: () => import('pages/TaskPage.vue'),
-            // },
+            {
+                path: '/music/:id',
+                name: 'Track',
+                meta: { title: 'Track' },
+                component: () => import('pages/SongDetails.vue'),
+            },
             {
                 path: '/services/:id',
                 name: 'service-checkout',

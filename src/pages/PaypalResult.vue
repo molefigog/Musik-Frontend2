@@ -1,18 +1,18 @@
 <template>
-  <div class="result-page">
+  <q-page class="flex flex-center q-pa-md">
     <q-dialog v-model="dialog" persistent>
-      <q-card class="result-card">
+      <q-card style="min-width: min(100%, 26rem)">
         <q-card-section class="text-h6">
           PayPal Payment Result
         </q-card-section>
         <q-card-section>
-          <q-chip :color="status === 'processing' ? 'orange' : (isSuccess ? 'green' : 'red')">
+          <q-chip :color="status === 'processing' ? 'warning' : (isSuccess ? 'positive' : 'negative')">
             {{ status }}
           </q-chip>
-          <div v-if="isSuccess" class="text-green text-weight-medium">
+          <div v-if="isSuccess" class="text-positive text-weight-medium">
             Payment Successful
           </div>
-          <div v-else class="text-red text-weight-medium">
+          <div v-else class="text-negative text-weight-medium">
             Payment Failed
           </div>
           <div class="q-mt-md text-caption">
@@ -24,7 +24,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </div>
+  </q-page>
 </template>
 
 <script setup>
@@ -90,26 +90,3 @@ onMounted(async () => {
   }
 })
 </script>
-
-<style scoped>
-.result-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.result-card {
-  width: min(100%, 26rem);
-  max-width: 100%;
-}
-
-.text-green {
-  color: #21ba45;
-}
-
-.text-red {
-  color: #c10015;
-}
-</style>
