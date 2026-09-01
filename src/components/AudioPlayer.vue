@@ -26,6 +26,12 @@ const props = defineProps({
     tracks: {
         type: Array,
         default: () => []
+    },
+    // Set true when a fixed bottom footer nav is also present (mobile),
+    // so the player bar sits above it instead of covering it.
+    aboveFooter: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -50,6 +56,8 @@ const getSrc = (track) => {
     if (track.file_src.startsWith('http')) return track.file_src
     return `${import.meta.env.VITE_API_BASE_URL}/storage/${track.file_src}`
 }
+
+const getCoverArt = (track) => track?.release?.cover_art || track?.cover_art || ''
 
 const currentTrack = computed(() =>
     sharedTracks.value.find(t => t.id === currentId.value)
@@ -224,7 +232,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div v-if="currentTrack" class="player-bar fixed-bottom">
+    <div v-if="currentTrack" class="player-bar fixed-bottom" :class="{ 'above-footer': aboveFooter }">
 
         <!-- SEEK BAR -->
         <div ref="scrubTrackEl" class="seek-track" @click="seek" @pointerdown.prevent="startScrub">
@@ -235,14 +243,20 @@ onUnmounted(() => {
         <!-- PLAYER INNER -->
         <div class="player-inner">
 
-            <!-- LEFT: Track Info -->
+            <!-- LEFT: Cover + Track Info -->
             <div class="track-info">
-                <div class="track-title ellipsis">
-                    {{ currentTrack.title || 'Untitled Beat' }}
+                <div class="cover-thumb">
+                    <img v-if="getCoverArt(currentTrack)" :src="getCoverArt(currentTrack)" />
+                    <q-icon v-else name="music_note" size="16px" color="grey-6" />
                 </div>
-                <div class="track-status">
-                    <span class="status-dot" :class="{ paused: !isPlaying }" />
-                    <span class="status-label">{{ isPlaying ? 'Now Playing' : 'Paused' }}</span>
+                <div class="track-text">
+                    <div class="track-title ellipsis">
+                        {{ currentTrack.title || 'Untitled Beat' }}
+                    </div>
+                    <div class="track-status">
+                        <span class="status-dot" :class="{ paused: !isPlaying }" />
+                        <span class="status-label">{{ isPlaying ? 'Now Playing' : 'Paused' }}</span>
+                    </div>
                 </div>
             </div>
 
@@ -288,11 +302,19 @@ onUnmounted(() => {
     right: 0;
     bottom: 0;
     z-index: 9999;
-    background: rgba(10, 10, 15, 0.98);
-    border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+    background: rgba(14, 11, 22, 0.98);
+    border-top: 1px solid rgba(168, 85, 247, 0.22);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Sit above the mobile footer nav bar instead of covering it */
+.player-bar.above-footer {
+    bottom: 56px;
+    padding-bottom: 0;
 }
 
 .seek-track {
@@ -335,11 +357,38 @@ onUnmounted(() => {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    padding: 0.55rem 0.75rem 0.65rem;
+    padding: 0.6rem 0.85rem 0.7rem;
     gap: 0.55rem;
 }
 
 .track-info {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.cover-thumb {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cover-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.track-text {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -415,15 +464,16 @@ onUnmounted(() => {
 }
 
 .ctrl-btn.play-main {
-    width: 2.5rem;
-    height: 2.5rem;
-    background: #7c3aed;
+    width: 2.6rem;
+    height: 2.6rem;
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
     color: #fff;
+    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
 }
 
 .ctrl-btn.play-main:hover {
-    background: #6d28d9;
-    transform: scale(1.03);
+    background: linear-gradient(135deg, #b968ff, #6d28d9);
+    transform: scale(1.04);
 }
 
 .right-controls {
@@ -505,11 +555,6 @@ onUnmounted(() => {
     .track-info,
     .right-controls {
         justify-content: center;
-    }
-
-    .track-info {
-        align-items: center;
-        text-align: center;
     }
 
     .track-status {

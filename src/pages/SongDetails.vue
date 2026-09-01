@@ -121,8 +121,10 @@
                 </div>
             </q-scroll-area>
         </template>
+    </q-page>
+</template>
 
-        <script setup>
+<script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
