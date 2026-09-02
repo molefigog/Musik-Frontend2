@@ -58,11 +58,13 @@
 
                 <!-- WAVEFORM HERO: title / release / genre / price overlaid on top of waveform -->
                 <div class="waveform-hero" @click="(e) => seekTrack(track, e)">
-                    <img v-if="track.waveform" :src="track.waveform" class="waveform-bg" />
-                    <div class="waveform-scrim" />
-                    <div class="playhead" :style="{
-                        width: currentId === track.id ? (progress * 100) + '%' : 0
+                    <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-base" />
+                    <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-played" :style="{
+                        clipPath: `inset(0 ${100 - (currentId === track.id ? progress * 100 : 0)}% 0 0)`
                     }" />
+                    <div class="waveform-scrim" />
+                    <div v-if="currentId === track.id" class="playhead-line"
+                        :style="{ left: (progress * 100) + '%' }" />
 
                     <div class="hero-content">
                         <div class="hero-top">
@@ -80,7 +82,7 @@
 
                 <!-- DESKTOP ACTIONS -->
                 <div class="col-action desktop-actions">
-                    <q-btn round flat dense icon="favorite_border" class="action-btn" />
+                    <q-btn round flat dense icon="info" class="action-btn" @click="goToTrackDetails(track)" />
                 </div>
 
                 <div class="col-action desktop-actions">
@@ -124,7 +126,8 @@
                 <div class="sheet-actions">
                     <q-btn flat class="sheet-action-btn" icon="favorite_border" label="Save"
                         @click="closeTrackActions" />
-                    <q-btn flat class="sheet-action-btn" icon="info" label="Details" @click="closeTrackActions" />
+                    <q-btn flat class="sheet-action-btn" icon="info" label="Details"
+                        @click="goToTrackDetails(selectedTrack)" />
                     <q-btn v-if="selectedTrack && isFreeTrack(selectedTrack)" flat class="sheet-action-btn"
                         :icon="selectedTrack && isDownloading(selectedTrack.id) ? 'downloading' : 'download'"
                         :label="selectedTrack && isDownloading(selectedTrack.id) ? 'Downloading...' : 'Download'"
@@ -147,6 +150,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { ApiService } from 'src/services/api'
@@ -164,6 +168,7 @@ import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
 
 const $q = useQuasar()
+const router = useRouter()
 const api = ApiService
 const isPlaying = sharedIsPlaying
 const currentId = sharedCurrentId
@@ -212,7 +217,14 @@ const isDownloadIndeterminate = (trackId) => {
     const state = getDownloadState(trackId)
     return Boolean(state?.status === 'downloading' && state?.totalBytes === 0)
 }
+const goToTrackDetails = (track = selectedTrack.value) => {
+    const trackId = track?.id || selectedTrack.value?.id
+    if (!trackId) return
 
+    mobileActionsOpen.value = false
+    selectedTrack.value = null
+    router.push({ name: 'Track', params: { id: trackId } })
+}
 const downloadProgressValue = (trackId) => {
     const percent = Number(getDownloadState(trackId)?.progress || 0)
     return Math.max(0, Math.min(1, percent / 100))
@@ -823,31 +835,44 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.55;
+    pointer-events: none;
+}
+
+.waveform-bg-base {
+    z-index: 1;
+    opacity: 0.4;
+    filter: grayscale(35%) brightness(0.65);
+}
+
+.waveform-bg-played {
+    z-index: 2;
+    opacity: 0.95;
+    filter: brightness(1.2) saturate(1.5) hue-rotate(235deg);
+    transition: clip-path 0.05s linear;
 }
 
 .waveform-scrim {
     position: absolute;
     inset: 0;
+    z-index: 3;
     background: linear-gradient(90deg, rgba(10, 10, 15, 0.9) 0%, rgba(10, 10, 15, 0.58) 55%, rgba(10, 10, 15, 0.88) 100%);
 }
 
-.playhead {
+.playhead-line {
     position: absolute;
     top: 0;
-    left: 0;
     bottom: 0;
-    z-index: 2;
-    background: rgba(124, 58, 237, 0.28);
-    border-right: 2px solid #a78bfa;
-    box-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
-    transition: width 0.05s linear;
+    z-index: 4;
+    width: 2px;
+    background: #c4b5fd;
+    box-shadow: 0 0 8px rgba(196, 181, 253, 0.8);
     pointer-events: none;
+    transition: left 0.05s linear;
 }
 
 .hero-content {
     position: relative;
-    z-index: 3;
+    z-index: 5;
     height: 100%;
     display: flex;
     align-items: center;

@@ -1,13 +1,13 @@
 <template>
-    <q-page class="text-white overflow-hidden">
+    <q-page class="track-details-page text-white overflow-hidden">
         <!-- LOADING -->
-        <div v-if="loading" class="q-pa-xl flex flex-center column">
+        <div v-if="loading" class="page-loading q-pa-xl flex flex-center column">
             <q-spinner color="purple-4" size="32px" class="q-mb-md" />
             <div class="text-subtitle1">Loading track…</div>
         </div>
 
         <!-- ERROR -->
-        <div v-else-if="loadError" class="q-pa-xl flex flex-center column">
+        <div v-else-if="loadError" class="page-loading q-pa-xl flex flex-center column">
             <q-icon name="error_outline" size="32px" color="grey-5" class="q-mb-md" />
             <div class="text-subtitle1 q-mb-md">Couldn't load this track.</div>
             <q-btn flat dense label="Retry" color="purple-4" @click="fetchTrack" />
@@ -15,119 +15,115 @@
 
         <!-- CONTENT -->
         <template v-else-if="track">
-            <!-- HEADER -->
-            <q-toolbar class="q-px-md">
-                <q-btn round flat dense icon="arrow_back" @click="$router.back()" />
-                <div class="row items-center q-gutter-sm q-ml-md">
-                    <q-icon name="headphones" size="18px" />
+            <q-toolbar class="details-header q-px-md">
+                <q-btn round flat dense icon="arrow_back" color="white" class="back-btn" @click="$router.back()" />
+                <div class="brand-block">
+                    <div class="brand-icon">
+                        <q-icon name="headphones" size="18px" color="white" />
+                    </div>
                     <div>
-                        <div class="text-subtitle2 text-weight-bold">GW ENT Store</div>
-                        <div class="text-caption text-grey-4">Beats Marketplace</div>
+                        <div class="brand-name">GW ENT Store</div>
+                        <div class="brand-sub">Beats Marketplace</div>
                     </div>
                 </div>
             </q-toolbar>
 
-            <!-- MAIN CONTENT -->
-            <q-scroll-area class="flex-1">
-                <div class="q-pa-md">
-                    <!-- ALBUM ART & INFO -->
-                    <div class="column q-gutter-md q-mb-lg">
-                        <div class="flex flex-center">
-                            <q-icon name="music_note" size="64px" color="purple-3" />
-                        </div>
 
-                        <div class="column q-gutter-sm">
-                            <q-chip v-if="track.genre" dense>{{ track.genre.title }}</q-chip>
-                            <h1 class="text-h5 text-weight-bold q-my-none">{{ track.title }}</h1>
-                            <p v-if="track.release" class="text-subtitle2 text-grey-4 q-my-none">{{ track.release.title
-                            }}</p>
-
-                            <div class="text-caption text-grey-5">
-                                <span v-if="track.duration">{{ formatDuration(track.duration) }}</span>
-                                <span v-if="track.duration && track.extension">·</span>
-                                <span v-if="track.extension">{{ track.extension.toUpperCase() }}</span>
-                                <span v-if="track.extension && track.size">·</span>
-                                <span v-if="track.size">{{ formatSize(track.size) }}</span>
-                            </div>
-
-                            <div class="row q-gutter-sm q-mt-md">
-                                <q-btn round color="primary" :icon="isPlaying ? 'pause' : 'play_arrow'"
-                                    @click="togglePlay(track.id, track.file_src)" />
-                                <q-btn v-if="isFreeTrack(track)" outline rounded color="white" label="Download"
-                                    icon="download" :disable="isDownloading(track.id)"
-                                    :loading="isDownloading(track.id)" @click="downloadTrack(track)" />
-                                <q-btn v-else unelevated rounded color="purple-6" :label="'Buy — R' + priceLabel(track)"
-                                    icon="add_shopping_cart" @click="addTrackToCart(track)" />
-                            </div>
-
-                            <!-- DOWNLOAD PROGRESS -->
-                            <div v-if="hasDownloadState(track.id)" class="q-mt-md">
-                                <q-linear-progress :value="downloadProgressValue(track.id)"
-                                    :indeterminate="isDownloadIndeterminate(track.id)" color="positive"
-                                    track-color="rgba(255, 255, 255, 0.12)" rounded size="4px" />
-                                <div class="text-caption q-mt-xs">{{ downloadStatusLabel(track.id) }}</div>
-                            </div>
+            <div class=" q-pa-md">
+                <div class="track-hero card-surface">
+                    <div class="hero-art">
+                        <img v-if="getCoverArt(track)" :src="getCoverArt(track)"
+                            style="width: 100%; height: 100%; object-fit: cover;" class="cover-img" />
+                        <div v-else class="cover-fallback">
+                            <q-icon name="music_note" color="grey-6" />
                         </div>
                     </div>
 
-                    <!-- WAVEFORM PLAYER -->
-                    <q-card flat class="q-mb-lg">
-                        <div class="bg-grey-9 cursor-pointer" @click="seekTrack(track.id, $event)"
-                            style="height: 100px;">
-                            <img v-if="track.waveform" :src="track.waveform" class="full-width full-height"
-                                style="object-fit: cover;" />
-                            <div class="absolute"
-                                :style="{ width: (progress * 100) + '%', height: '100%', backgroundColor: 'rgba(156, 39, 176, 0.5)' }" />
-                        </div>
-                        <q-card-section class="row justify-between text-caption text-grey-5">
-                            <span>{{ formatDuration(currentTime) }}</span>
-                            <span>{{ formatDuration(track.duration) }}</span>
-                        </q-card-section>
-                    </q-card>
+                    <div class="hero-copy">
+                        <div v-if="track.genre" class="genre-tag">{{ track.genre.title }}</div>
+                        <h1>{{ track.title }}</h1>
+                        <p v-if="track.release">{{ track.release.title }}</p>
 
-                    <!-- TRACK DETAILS GRID -->
-                    <q-card flat>
-                        <q-card-section>
-                            <div class="text-subtitle2 text-weight-bold q-mb-md">Track Details</div>
-                            <div class="row q-col-gutter-md">
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">Genre</div>
-                                    <div class="text-body2">{{ track.genre?.title || '—' }}</div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">Release</div>
-                                    <div class="text-body2">{{ track.release?.title || '—' }}</div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">Duration</div>
-                                    <div class="text-body2">{{ formatDuration(track.duration) }}</div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">File Size</div>
-                                    <div class="text-body2">{{ formatSize(track.size) }}</div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">Format</div>
-                                    <div class="text-body2">{{ track.extension?.toUpperCase() || '—' }}</div>
-                                </div>
-                                <div class="col-6 col-sm-4">
-                                    <div class="text-caption text-grey-5">Price</div>
-                                    <div class="text-body2">{{ isFreeTrack(track) ? 'Free' : 'R' + priceLabel(track) }}
-                                    </div>
+                        <div class="meta-line text-grey-5">
+                            <span v-if="track.duration">{{ track.duration }}</span>
+                            <span v-if="track.duration && track.extension">·</span>
+                            <span v-if="track.extension">{{ track.extension.toUpperCase() }}</span>
+                            <span v-if="track.extension && track.size">·</span>
+                            <span v-if="track.size">{{ track.size }}</span>
+                        </div>
+
+                        <div class="action-row">
+                            <q-btn round :icon="isPlaying ? 'pause' : 'play_arrow'" class="primary-action"
+                                @click="togglePlay(track.id, track.file_src)" />
+                            <q-btn v-if="isFreeTrack(track)" outline rounded color="white" label="Download"
+                                icon="download" class="detail-btn" :disable="isDownloading(track.id)"
+                                :loading="isDownloading(track.id)" @click="downloadTrack(track)" />
+                            <q-btn v-else unelevated rounded :label="'Buy — R' + priceLabel(track)" class="detail-btn"
+                                @click="addTrackToCart(track)" />
+                        </div>
+
+                        <div v-if="hasDownloadState(track.id)" class="download-panel">
+                            <q-linear-progress :value="downloadProgressValue(track.id)"
+                                :indeterminate="isDownloadIndeterminate(track.id)" color="positive"
+                                track-color="rgba(255, 255, 255, 0.12)" rounded size="4px" />
+                            <div class="download-label">{{ downloadStatusLabel(track.id) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <q-card flat class="track-waveform card-surface">
+                    <div class="waveform-wrap cursor-pointer" @click="seekTrack(track.id, $event)">
+                        <img v-if="track.waveform" :src="track.waveform" class="waveform-image" />
+                        <div class="waveform-progress" :style="{ width: (progress * 100) + '%' }" />
+                    </div>
+                    <q-card-section class="row justify-between text-caption text-grey-5 waveform-times">
+                        <span>{{ formatDuration(currentTime) }}</span>
+                        <span>{{ track.duration }}</span>
+                    </q-card-section>
+                </q-card>
+
+                <q-card flat class="track-info card-surface">
+                    <q-card-section>
+                        <div class="panel-header">Track Details</div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Genre</div>
+                                <div class="info-value">{{ track.genre?.title || '—' }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Release</div>
+                                <div class="info-value">{{ track.release?.title || '—' }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Duration</div>
+                                <div class="info-value">{{ track.duration }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">File Size</div>
+                                <div class="info-value">{{ track.size }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Format</div>
+                                <div class="info-value">{{ track.extension?.toUpperCase() || '—' }}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Price</div>
+                                <div class="info-value">{{ isFreeTrack(track) ? 'Free' : 'R' + priceLabel(track) }}
                                 </div>
                             </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
-            </q-scroll-area>
+                        </div>
+                    </q-card-section>
+                </q-card>
+            </div>
+
         </template>
     </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useQuasar, useMeta } from 'quasar'
 import { ApiService } from 'src/services/api'
 import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
@@ -143,7 +139,43 @@ const notifications = useNotificationsStore()
 const track = ref(null)
 const loading = ref(true)
 const loadError = ref(false)
+const getCoverArt = (track) => track?.release?.cover_art || track?.cover_art || ''
 
+const pageTitle = computed(() => {
+    if (!track.value?.title) return 'GW ENT Store | Beats Marketplace'
+    return `${track.value.title} | GW ENT Store`
+})
+
+const pageDescription = computed(() => {
+    if (!track.value) {
+        return 'Discover premium beats and music releases from GW ENT Store.'
+    }
+
+    const release = track.value.release?.title ? ` from ${track.value.release.title}` : ''
+    const genre = track.value.genre?.title ? ` • ${track.value.genre.title}` : ''
+    return `${track.value.title}${release}${genre}. Stream or download this track from GW ENT Store.`
+})
+
+useMeta(() => ({
+    title: pageTitle.value,
+    meta: {
+        description: { name: 'description', content: pageDescription.value },
+        ogTitle: { property: 'og:title', content: pageTitle.value },
+        ogDescription: { property: 'og:description', content: pageDescription.value },
+        ogType: { property: 'og:type', content: 'website' },
+        ogImage: {
+            property: 'og:image',
+            content: getCoverArt(track.value) || 'https://gw-ent.co.za/assets/og-default.jpg',
+        },
+        twitterCard: { name: 'twitter:card', content: 'summary_large_image' },
+        twitterTitle: { name: 'twitter:title', content: pageTitle.value },
+        twitterDescription: { name: 'twitter:description', content: pageDescription.value },
+        twitterImage: {
+            name: 'twitter:image',
+            content: getCoverArt(track.value) || 'https://gw-ent.co.za/assets/og-default.jpg',
+        },
+    },
+}))
 // Audio player composable
 // eslint-disable-next-line no-unused-vars
 const { currentId, isPlaying, progress, currentTime, togglePlay, seekTrack, stopAudio, cleanup } =
@@ -192,11 +224,11 @@ function formatDuration(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function formatSize(bytes) {
-    if (!bytes) return '—'
-    const mb = bytes / (1024 * 1024)
-    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
-}
+// function formatSize(bytes) {
+//     if (!bytes) return '—'
+//     const mb = bytes / (1024 * 1024)
+//     return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
+// }
 
 async function downloadTrack(track) {
     if (!track?.id || !isFreeTrack(track)) return
@@ -325,3 +357,297 @@ onBeforeUnmount(() => {
     cleanup()
 })
 </script>
+
+<style scoped>
+.track-details-page {
+    background:
+        radial-gradient(circle at top left, rgba(168, 85, 247, 0.18), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 30%),
+        #0a0a0f;
+    min-height: 100vh;
+    font-family: var(--q-font-sans, system-ui, sans-serif);
+}
+
+.details-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 10, 15, 0.9);
+    backdrop-filter: blur(20px);
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.brand-block {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+}
+
+.brand-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(168, 85, 247, 0.35);
+}
+
+.brand-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #f3f4f6;
+}
+
+.brand-sub {
+    font-size: 0.65rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.details-scroll-area {
+    background: transparent;
+}
+
+.details-shell {
+    max-width: 820px;
+    margin: 0 auto;
+    padding-top: 1rem;
+    padding-bottom: 4rem;
+}
+
+.card-surface {
+    background: rgba(17, 24, 39, 0.72) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 1.25rem;
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(12px);
+}
+
+.track-hero {
+    display: grid;
+    grid-template-columns: minmax(170px, 210px) minmax(0, 1fr);
+    gap: 1.2rem;
+    padding: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.hero-art {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    border-radius: 1.15rem;
+    overflow: hidden;
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.18), rgba(15, 23, 42, 0.5));
+    border: 1px solid rgba(196, 181, 253, 0.2);
+}
+
+.art-ring {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    border: 1px solid rgba(196, 181, 253, 0.3);
+    box-shadow: inset 0 0 40px rgba(168, 85, 247, 0.1), 0 0 40px rgba(168, 85, 247, 0.1);
+}
+
+.art-core {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(168, 85, 247, 0.48), rgba(17, 24, 39, 0.96) 68%);
+    box-shadow: 0 18px 35px rgba(168, 85, 247, 0.2);
+}
+
+.hero-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.genre-tag {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #d1d5db;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    margin-bottom: 0.55rem;
+}
+
+.hero-copy h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 2vw + 1rem, 2.9rem);
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    color: #f8fafc;
+}
+
+.hero-copy p {
+    margin: 0.45rem 0 0;
+    color: rgba(229, 231, 235, 0.78);
+    font-size: 1rem;
+}
+
+.meta-line {
+    margin-top: 0.8rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.76rem;
+    letter-spacing: 0.01em;
+}
+
+.action-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.2rem;
+    flex-wrap: wrap;
+}
+
+.primary-action {
+    box-shadow: 0 18px 35px rgba(168, 85, 247, 0.42) !important;
+}
+
+.detail-btn {
+    min-height: 2.7rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em;
+}
+
+.download-panel {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.download-label {
+    font-size: 0.68rem;
+    color: #9ca3af;
+}
+
+.track-waveform {
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.waveform-wrap {
+    position: relative;
+    height: 110px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.waveform-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1) brightness(0.72);
+}
+
+.waveform-progress {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    max-width: 100%;
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.7), rgba(192, 132, 252, 0.38));
+    box-shadow: inset -12px 0 20px rgba(255, 255, 255, 0.08);
+}
+
+.waveform-times {
+    padding: 0.9rem 1rem 1rem !important;
+    font-size: 0.72rem;
+}
+
+.track-info {
+    overflow: hidden;
+}
+
+.panel-header {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #f3f4f6;
+    margin-bottom: 1rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.info-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.8rem;
+    padding: 0.9rem 0.8rem;
+}
+
+.info-label {
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+    margin-bottom: 0.45rem;
+}
+
+.info-value {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f8fafc;
+    word-break: break-word;
+}
+
+@media (max-width: 640px) {
+    .details-shell {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+
+    .track-hero {
+        grid-template-columns: 1fr;
+        padding: 0.9rem;
+    }
+
+    .hero-art {
+        min-height: 170px;
+    }
+
+    .art-core {
+        width: 96px;
+        height: 96px;
+    }
+
+    .info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+</style>
