@@ -55,6 +55,26 @@
                         <div class="action-row">
                             <q-btn round :icon="isPlaying ? 'pause' : 'play_arrow'" class="primary-action"
                                 @click="togglePlay(track.id, track.file_src)" />
+                            <q-btn v-if="isApk" outline rounded color="white" icon="share" class="detail-btn"
+                                :disable="true" hidden />
+                            <q-btn v-else outline rounded color="white" label="Share" icon="share" class="detail-btn">
+                                <q-menu anchor="bottom left" self="top left">
+                                    <q-list class="share-menu">
+                                        <q-item clickable v-close-popup @click="shareTo('x')">
+                                            <q-item-section avatar><q-icon name="public" /></q-item-section>
+                                            <q-item-section>X</q-item-section>
+                                        </q-item>
+                                        <q-item clickable v-close-popup @click="shareTo('facebook')">
+                                            <q-item-section avatar><q-icon name="public" /></q-item-section>
+                                            <q-item-section>Facebook</q-item-section>
+                                        </q-item>
+                                        <q-item clickable v-close-popup @click="shareTo('whatsapp')">
+                                            <q-item-section avatar><q-icon name="chat" /></q-item-section>
+                                            <q-item-section>WhatsApp</q-item-section>
+                                        </q-item>
+                                    </q-list>
+                                </q-menu>
+                            </q-btn>
                             <q-btn v-if="isFreeTrack(track)" outline rounded color="white" label="Download"
                                 icon="download" class="detail-btn" :disable="isDownloading(track.id)"
                                 :loading="isDownloading(track.id)" @click="downloadTrack(track)" />
@@ -129,13 +149,14 @@ import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
 import { useAudioPlayer } from 'src/composables/useAudioPlayer'
 import { useTrackDownload } from 'src/composables/useTrackDownload'
+import { Capacitor } from '@capacitor/core'
 
 const $q = useQuasar()
 const api = ApiService
 const route = useRoute()
 const cart = useCartStore()
 const notifications = useNotificationsStore()
-
+const isApk = Capacitor.getPlatform() === 'android'
 const track = ref(null)
 const loading = ref(true)
 const loadError = ref(false)
@@ -177,8 +198,8 @@ useMeta(() => ({
     },
 }))
 // Audio player composable
-// eslint-disable-next-line no-unused-vars
-const { currentId, isPlaying, progress, currentTime, togglePlay, seekTrack, stopAudio, cleanup } =
+
+const { isPlaying, progress, currentTime, togglePlay, seekTrack, stopAudio, cleanup } =
     useAudioPlayer()
 
 // Download composable
@@ -222,6 +243,37 @@ function formatDuration(seconds) {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
     return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function getTrackShareUrl() {
+    const appUrl = String(import.meta.env.VITE_PUBLIC_APP_URL || 'https://gw-ent.co.za').replace(/\/$/, '')
+    return `${appUrl}/music/${encodeURIComponent(track.value.id)}`
+}
+
+function getShareData() {
+    return {
+        title: track.value.title,
+        text: `Listen to ${track.value.title} on GW ENT Store`,
+        url: getTrackShareUrl(),
+    }
+}
+
+
+function shareTo(network) {
+    if (!track.value) return
+
+    const { text, url } = getShareData()
+    const encodedUrl = encodeURIComponent(url)
+    const encodedText = encodeURIComponent(`${text} ${url}`)
+    const shareLinks = {
+        x: `https://twitter.com/intent/tweet?text=${encodedText}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        whatsapp: `https://wa.me/?text=${encodedText}`,
+    }
+    const shareUrl = shareLinks[network]
+
+    if (!shareUrl) return
+    window.open(shareUrl, '_blank', 'noopener,noreferrer')
 }
 
 // function formatSize(bytes) {

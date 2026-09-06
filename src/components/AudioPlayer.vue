@@ -497,19 +497,15 @@ onUnmounted(() => {
 
 @media (max-width: 900px) {
     .player-inner {
-        grid-template-columns: 1fr;
-        padding: 0.7rem 0.85rem 0.95rem;
+        grid-template-columns: minmax(0, 1fr) auto;
+        height: 56px;
+        padding: 0 0.85rem;
         gap: 0.65rem;
     }
 
-    .track-info,
-    .right-controls {
-        justify-content: center;
-    }
-
     .track-info {
-        align-items: center;
-        text-align: center;
+        align-items: flex-start;
+        text-align: left;
     }
 
     .track-status {
@@ -517,8 +513,6 @@ onUnmounted(() => {
     }
 
     .controls {
-        order: -1;
-        margin-bottom: 0.1rem;
         gap: 0.65rem;
     }
 
@@ -532,34 +526,15 @@ onUnmounted(() => {
         height: 2.9rem;
     }
 
-    .stop-btn {
-        display: flex;
-    }
-
     .right-controls {
-        justify-content: center;
-        gap: 0.45rem;
-        width: 100%;
-    }
-
-    .time-wrap {
-        flex-wrap: nowrap;
-        justify-content: center;
-    }
-
-    .time-val {
-        min-width: 2rem;
-    }
-
-    .vol-wrap {
         display: none;
     }
 }
 
 @media (max-width: 600px) {
     .player-inner {
-        padding: 0.62rem 0.6rem 0.78rem;
-        gap: 0.5rem;
+        padding: 0 0.6rem;
+        gap: 0.45rem;
     }
 
     .track-title {
@@ -575,6 +550,10 @@ onUnmounted(() => {
         gap: 0.5rem;
     }
 
+    .stop-btn {
+        display: none;
+    }
+
     .ctrl-btn {
         width: 2.35rem;
         height: 2.35rem;
@@ -585,17 +564,8 @@ onUnmounted(() => {
         height: 2.7rem;
     }
 
-    .time-val,
-    .time-sep {
-        font-size: 0.65rem;
-    }
-
-    .time-wrap {
-        gap: 0.28rem;
-    }
-
     .seek-track {
-        height: 0.22rem;
+        height: 0.25rem;
     }
 
     .seek-thumb {

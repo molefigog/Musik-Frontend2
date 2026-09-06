@@ -28,6 +28,30 @@ const routes = [
                 component: () => import('pages/SongDetails.vue'),
             },
             {
+                path: '/releases',
+                name: 'releases',
+                meta: { title: 'Releases', requiresAuth: true },
+                component: () => import('pages/ReleasesPage.vue'),
+            },
+            {
+                path: '/releases/create',
+                name: 'release-create',
+                meta: { title: 'New Release', requiresAuth: true },
+                component: () => import('pages/ReleaseEditPage.vue'),
+            },
+            {
+                path: '/releases/:id/edit',
+                name: 'release-edit',
+                meta: { title: 'Edit Release', requiresAuth: true },
+                component: () => import('pages/ReleaseEditPage.vue'),
+            },
+            {
+                path: '/music/:id/waveform',
+                name: 'waveform',
+                meta: { title: 'Track Waveform', requiresAuth: true },
+                component: () => import('pages/WaveformPage.vue'),
+            },
+            {
                 path: '/services/:id',
                 name: 'service-checkout',
                 meta: { title: 'Service Checkout', requiresAuth: true },

@@ -1,20 +1,5 @@
 <script setup>
-/**
- * PaymentGatewaySelector
- * -------------------------------------------------------------------------
- * Merges 4 payment gateways behind one method switcher:
- *   - card    : C-Pay Card        (single step, iframe/redirect modal)
- *   - mobile  : C-Pay Mobile Money (two-step, OTP confirm)
- *   - mpesa   : M-Pesa STK push    (polling dialog)
- *   - paypal  : PayPal             (Capacitor in-app browser + deep link)
- *
- * Pass amount / description / itemId / itemType from the parent checkout
- * screen - this component never lets the customer edit the price.
- *
- * Emits 'success' | 'error' | 'cancelled' | 'initialized', each with
- * { method, ...payload }, so the parent only needs one set of listeners
- * no matter which gateway the customer picks.
- */
+
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useQuasar } from 'quasar'
 import { ApiService } from 'src/services/api'
@@ -728,7 +713,17 @@ const payWithPaypal = async () => {
       `,
             html: true,
             persistent: true,
-            ok: false
+            ok: false,
+            cancel: {
+                label: 'Dismiss',
+                flat: true,
+                color: 'negative'
+            }
+        })
+
+        paypalWaitDialog.onCancel(() => {
+            hidePaypalWaitDialog()
+            statusMessage.value = 'Payment is still processing. You can continue using the app.'
         })
 
         if (Capacitor.isNativePlatform()) {
@@ -1041,21 +1036,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* .payment-wrapper {
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 20px;
-} */
-
-/* .payment-card {
-    width: 100%;
-    max-width: 620px;
-    margin: 0 auto;
-    border-radius: 4px;
-    padding: 24px;
-} */
-
 .card-subtitle {
     margin: 0 auto 16px;
     max-width: 420px;

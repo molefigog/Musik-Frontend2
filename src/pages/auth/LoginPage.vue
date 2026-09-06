@@ -3,90 +3,67 @@
         <div class="login-wrapper">
             <q-card flat class="glass-card overflow-hidden">
 
-                <div class="row">
 
-                    <!-- LEFT SIDE -->
-                    <div class="col-12 col-md-5 music-side flex flex-center column text-center q-pa-xl">
-                        <div class="music-glow"></div>
+                <!-- RIGHT SIDE -->
+                <div class="col-12 col-md-7">
+                    <div class="q-pa-lg q-pa-xl-md">
 
-                        <q-img src="/logo.png" spinner-color="white" fit="contain" class="login-logo q-mb-lg" />
-
-                        <div class="text-h4 text-weight-bold title q-mb-sm">
-                           GW ENT.
-                        </div>
-
-                        <div class="subtitle text-body1">
-                            Beats Portal.
-                        </div>
-
-                        <div class="wave-lines q-mt-xl">
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                        </div>
-                    </div>
-
-                    <!-- RIGHT SIDE -->
-                    <div class="col-12 col-md-7">
-                        <div class="q-pa-lg q-pa-xl-md">
-
-                            <div class="text-center q-mb-xl">
-                                <div class="text-h4 title">
-                                    Welcome Back
-                                </div>
-
-                                <div class="subtitle q-mt-sm">
-                                    Login to access virtual service
-                                </div>
+                        <div class="text-center q-mb-xl">
+                            <div class="text-h4 title">
+                                Welcome Back
                             </div>
 
-                            <q-form class="q-gutter-md" @submit="onLogin">
-
-                                <q-input v-model="form.email" label="Email" dark outlined class="glass-input"
-                                    :rules="[val => !!val || 'Username is required']" :error="!!fieldErrors.email"
-                                    :error-message="fieldErrors.email">
-                                    <template v-slot:prepend>
-                                        <q-icon name="person" color="white" />
-                                    </template>
-                                </q-input>
-
-                                <q-input v-model="form.password" label="Password" dark outlined class="glass-input"
-                                    :type="isPwd ? 'password' : 'text'"
-                                    :rules="[val => !!val || 'Password is required']" :error="!!fieldErrors.password"
-                                    :error-message="fieldErrors.password">
-                                    <template v-slot:prepend>
-                                        <q-icon name="lock" color="white" />
-                                    </template>
-
-                                    <template v-slot:append>
-                                        <q-icon :name="isPwd ? 'visibility_off' : 'visibility'" class="cursor-pointer"
-                                            color="white" @click="isPwd = !isPwd" />
-                                    </template>
-                                </q-input>
-
-                                <div v-if="fieldErrors.general" class="glass-error text-white q-pa-md">
-                                    {{ fieldErrors.general }}
-                                </div>
-
-                                <q-btn type="submit" label="Login" class="full-width glass-btn q-py-sm" unelevated
-                                    :loading="isLoggingIn" :disable="isLoggingIn" />
-
-                                <q-btn flat class="full-width glass-btn-secondary q-mt-sm" label="Continue with Google"
-                                    icon="music_note" />
-
-                                <div class="text-center q-mt-lg subtitle">
-                                    Don't have an account?
-                                    <router-link to="/register" class="link-btn text-weight-medium"
-                                        style="text-decoration: none">
-                                        Register
-                                    </router-link>
-                                </div>
-
-                            </q-form>
+                            <div class="subtitle q-mt-sm">
+                                Login to access virtual service
+                            </div>
                         </div>
-                    </div>
 
+                        <q-form class="q-gutter-md" @submit="onLogin">
+
+                            <q-input v-model="form.email" label="Email" dark outlined class="glass-input"
+                                :rules="[val => !!val || 'Username is required']" :error="!!fieldErrors.email"
+                                :error-message="fieldErrors.email">
+                                <template v-slot:prepend>
+                                    <q-icon name="person" color="white" />
+                                </template>
+                            </q-input>
+
+                            <q-input v-model="form.password" label="Password" dark outlined class="glass-input"
+                                :type="isPwd ? 'password' : 'text'" :rules="[val => !!val || 'Password is required']"
+                                :error="!!fieldErrors.password" :error-message="fieldErrors.password">
+                                <template v-slot:prepend>
+                                    <q-icon name="lock" color="white" />
+                                </template>
+
+                                <template v-slot:append>
+                                    <q-icon :name="isPwd ? 'visibility_off' : 'visibility'" class="cursor-pointer"
+                                        color="white" @click="isPwd = !isPwd" />
+                                </template>
+                            </q-input>
+
+                            <div v-if="fieldErrors.general" class="glass-error text-white q-pa-md">
+                                {{ fieldErrors.general }}
+                            </div>
+
+                            <q-btn type="submit" label="Login" class="full-width glass-btn q-py-sm" unelevated
+                                :loading="isLoggingIn" :disable="isLoggingIn" />
+
+                            <q-btn flat class="full-width glass-btn-secondary q-mt-sm" label="Continue with Google"
+                                icon="music_note" />
+
+                            <div class="text-center q-mt-lg subtitle">
+                                Don't have an account?
+                                <router-link to="/register" class="link-btn text-weight-medium"
+                                    style="text-decoration: none">
+                                    Register
+                                </router-link>
+                            </div>
+
+                        </q-form>
+                    </div>
                 </div>
+
+
             </q-card>
         </div>
     </q-page>
@@ -153,7 +130,7 @@ const onLogin = async () => {
             fieldErrors.value.general =
                 err.response?.data?.message || err.message || 'Login failed'
         }
- 
+
         $q.notify({
             type: 'negative',
             message: fieldErrors.value.general || 'Please correct the highlighted fields'

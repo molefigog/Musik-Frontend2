@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { useQuasar } from 'quasar'
 import { ApiService } from 'src/services/api'
@@ -113,6 +113,7 @@ const isPwd2 = ref(true)
 const isPwd3 = ref(true)
 
 const sessions = ref([])
+let paymentPoll
 
 const form = ref({
   name: '',
@@ -190,6 +191,16 @@ onMounted(async () => {
   }
 
   await fetchSessions()
+
+  paymentPoll = window.setInterval(() => {
+    if (auth.token) {
+      auth.fetchUser({ silent: true })
+    }
+  }, 30000)
+})
+
+onUnmounted(() => {
+  window.clearInterval(paymentPoll)
 })
 
 const update = async () => {

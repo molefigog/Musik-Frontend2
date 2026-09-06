@@ -12,7 +12,9 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-    isLoading.value = true
+    if (!config.silent) {
+        isLoading.value = true
+    }
 
     const auth = useAuthStore()
 
@@ -26,11 +28,15 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
     (res) => {
-        isLoading.value = false
+        if (!res.config.silent) {
+            isLoading.value = false
+        }
         return res
     },
     (err) => {
-        isLoading.value = false
+        if (!err.config?.silent) {
+            isLoading.value = false
+        }
         return Promise.reject(err)
     },
 )
@@ -43,4 +49,3 @@ export const ApiService = {
     delete: (url, config = {}) => api.delete(url, config),
     download: (url, config = {}) => api.get(url, { ...config, responseType: 'blob' }),
 }
-

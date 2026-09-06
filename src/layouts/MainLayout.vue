@@ -4,7 +4,12 @@
         <q-header class="glass-header-main">
             <q-toolbar class="toolbar-glass">
                 <q-btn v-if="isWeb" flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
-
+                <q-btn v-if="isApk && auth.isLoggedIn" flat round dense icon="notifications" aria-label="Notifications"
+                    to="/notifications">
+                    <q-badge v-if="unreadNotifications > 0" color="primary" floating>
+                        {{ unreadNotifications }}
+                    </q-badge>
+                </q-btn>
                 <q-toolbar-title class="text-center">
                     <span class="text-caption">
                         {{ $q.screen.gt.sm ? 'Genius Works Ent' : 'GW ENT' }}
@@ -70,6 +75,13 @@
                     <q-item-section>Downloads</q-item-section>
                 </q-item>
 
+                <q-item v-if="auth.isLoggedIn" to="/releases" clickable v-ripple>
+                    <q-item-section avatar>
+                        <q-icon name="album" />
+                    </q-item-section>
+                    <q-item-section>Releases</q-item-section>
+                </q-item>
+
                 <q-item to="/settings" clickable v-ripple>
                     <q-item-section avatar>
                         <q-icon name="settings" />
@@ -101,19 +113,18 @@
             </q-list>
         </q-drawer>
 
-       <q-footer v-if="!isWeb" class="app-footer">
-    <div class="row justify-around items-center q-px-sm q-py-xs">
-        <q-btn flat round dense icon="home" aria-label="Home" to="/" />
-        <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
-        <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
-        <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
-        <q-btn v-if="auth.isLoggedIn" flat round dense icon="notifications" aria-label="Notifications" to="/notifications">
-            <q-badge v-if="unreadNotifications > 0" color="primary" floating>{{ unreadNotifications }}</q-badge>
-        </q-btn>
-        <q-btn v-if="auth.isLoggedIn" flat round dense icon="download" aria-label="Downloads" to="/downloads" />
-        <q-btn v-else flat round dense icon="login" aria-label="Login" to="/login" />
-    </div>
-</q-footer>
+        <q-footer v-if="!isWeb" class="app-footer">
+            <div class="row justify-around items-center q-px-sm q-py-xs">
+                <q-btn flat round dense icon="home" aria-label="Home" to="/" />
+                <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
+                <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
+                <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
+                <q-btn v-if="auth.isLoggedIn" flat round dense icon="album" aria-label="Releases" to="/releases" />
+
+                <q-btn v-if="auth.isLoggedIn" flat round dense icon="download" aria-label="Downloads" to="/downloads" />
+                <q-btn v-else flat round dense icon="login" aria-label="Login" to="/login" />
+            </div>
+        </q-footer>
 
         <q-page-container>
             <router-view />
@@ -135,6 +146,8 @@ import { sharedTracks } from 'src/services/audio-player-state'
 const $q = useQuasar()
 const auth = useAuthStore()
 const isWeb = Capacitor.getPlatform() === 'web'
+const isApk = Capacitor.getPlatform() === 'android'
+
 const cart = useCartStore()
 const notifications = useNotificationsStore()
 const unreadNotifications = computed(() => notifications.unreadCount)

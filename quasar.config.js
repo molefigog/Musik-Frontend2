@@ -49,6 +49,7 @@ export default defineConfig((/* ctx */) => {
       env: {
         API_PATH: 'https://gw-ent.co.za/api/',
         // API_PATH: 'http://music3.local/api/',
+        ADMIN_PATH: 'https://gw-ent.co.za/user/',
       },
       // rawDefine: {}
       // ignorePublicFolder: true,

@@ -10,6 +10,7 @@ let listeners = {
     localAction: null,
 }
 let audioNotificationActionHandler = null
+const AUDIO_CHANNEL_ID = 'audio-playback'
 
 export const setAudioNotificationActionHandler = (handler) => {
     audioNotificationActionHandler = handler
@@ -19,24 +20,41 @@ export async function showAudioNotification({ title, isPlaying }) {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return
 
     try {
+        await LocalNotifications.createChannel({
+            id: AUDIO_CHANNEL_ID,
+            name: 'Audio playback',
+            description: 'Playback controls for music',
+            importance: 2,
+            visibility: 1,
+            sound: undefined,
+            vibration: false,
+            lights: false,
+        })
         await LocalNotifications.registerActionTypes({
-            types: [{
-                id: 'audio-controls',
-                actions: [
-                    { id: 'toggle', title: isPlaying ? 'Pause' : 'Play' },
-                    { id: 'stop', title: 'Stop' },
-                ],
-            }],
+            types: [
+                {
+                    id: 'audio-controls',
+                    actions: [
+                        { id: 'toggle', title: isPlaying ? 'Pause' : 'Play' },
+                        { id: 'stop', title: 'Stop' },
+                    ],
+                },
+            ],
         })
         await LocalNotifications.schedule({
-            notifications: [{
-                id: 7421,
-                title: title || 'GW ENT Music',
-                body: isPlaying ? 'Now playing' : 'Paused',
-                ongoing: true,
-                autoCancel: false,
-                actionTypeId: 'audio-controls',
-            }],
+            notifications: [
+                {
+                    id: 7421,
+                    title: title || 'GW ENT Music',
+                    body: isPlaying ? 'Now playing' : 'Paused',
+                    ongoing: true,
+                    autoCancel: false,
+                    channelId: AUDIO_CHANNEL_ID,
+                    smallIcon: 'ic_stat_music_note',
+                    silent: true,
+                    actionTypeId: 'audio-controls',
+                },
+            ],
         })
     } catch (error) {
         console.error('Failed to update audio notification', error)

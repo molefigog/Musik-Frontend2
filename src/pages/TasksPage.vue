@@ -12,7 +12,8 @@
             <task-card v-for="task in tasksStore.tasks" :key="task.id" :task="task" @details="openDetails" />
         </div>
 
-        <q-btn fab color="primary" icon="add" class="fixed-bottom-right q-ma-md" @click="openCreateDialog" />
+        <q-btn fab color="primary" icon="add" class="fixed-bottom-right q-ma-md" @click="openCreateDialog"
+            style="bottom: 24px;" />
 
         <q-dialog v-model="createDialogOpen">
             <q-card style="min-width: min(92vw, 420px)">
@@ -90,16 +91,16 @@ const serviceOptions = computed(() =>
     }))
 )
 async function loadServicePrices() {
-  try {
-    const { data } = await servicePricesApi.getPrices()
-    servicePrices.value = data.reduce((acc, row) => {
-      acc[row.service_type] = row.amount
-      return acc
-    }, {})
-  } catch (error) {
-    console.error('Service prices error:', error?.response?.status, error?.response?.data, error.message)
-    $q.notify({ type: 'warning', message: 'Could not load service prices' })
-  }
+    try {
+        const { data } = await servicePricesApi.getPrices()
+        servicePrices.value = data.reduce((acc, row) => {
+            acc[row.service_type] = row.amount
+            return acc
+        }, {})
+    } catch (error) {
+        console.error('Service prices error:', error?.response?.status, error?.response?.data, error.message)
+        $q.notify({ type: 'warning', message: 'Could not load service prices' })
+    }
 }
 
 function openDetails(task) {

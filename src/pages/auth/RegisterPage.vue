@@ -1,100 +1,86 @@
 <template>
   <q-page class="auth-page flex flex-center q-pa-md">
-    <div class="auth-wrapper row">
 
-      <!-- LEFT PANEL -->
-      <div class="col-12 col-md-5 left-panel flex flex-center">
-        <div class="text-center">
-          <div class="text-h3 text-weight-bold text-white fredoka">
-            Welcome!
+
+    <!-- RIGHT PANEL -->
+    <div class="col-12 col-md-7 right-panel">
+      <div class="form-container">
+
+        <div class="text-center q-mb-xl">
+          <div class="text-h4 text-weight-bold fredoka gradient-text">
+            Register
           </div>
 
-          <div class="text-subtitle1 text-grey-3 q-mt-md">
-            Create platform account
+          <div class="text-grey-5 q-mt-sm">
+            Join Genius Works Ent
           </div>
         </div>
-      </div>
 
-      <!-- RIGHT PANEL -->
-      <div class="col-12 col-md-7 right-panel">
-        <div class="form-container">
+        <q-form class="q-gutter-lg" @submit.prevent="onRegister">
 
-          <div class="text-center q-mb-xl">
-            <div class="text-h4 text-weight-bold fredoka gradient-text">
-              Register
-            </div>
+          <q-input v-model="form.name" label="Username" outlined rounded dark lazy-rules :rules="[
+            val => !!val || 'Username is required'
+          ]" :error="!!fieldErrors.name" :error-message="fieldErrors.name">
+            <template #prepend>
+              <q-icon name="person" />
+            </template>
+          </q-input>
 
-            <div class="text-grey-5 q-mt-sm">
-              Join Genius Works Ent
-            </div>
+          <q-input v-model="form.email" label="Email Address" type="email" outlined rounded dark lazy-rules :rules="[
+            val => !!val || 'Email is required'
+          ]" :error="!!fieldErrors.email" :error-message="fieldErrors.email">
+            <template #prepend>
+              <q-icon name="mail" />
+            </template>
+          </q-input>
+
+          <q-input v-model="form.password" label="Password" :type="showPassword ? 'text' : 'password'" outlined rounded
+            dark lazy-rules :rules="[
+              val => !!val || 'Password is required',
+              val => val.length >= 6 || 'Minimum 6 characters'
+            ]" :error="!!fieldErrors.password" :error-message="fieldErrors.password">
+            <template #prepend>
+              <q-icon name="lock" />
+            </template>
+
+            <template #append>
+              <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer"
+                @click="showPassword = !showPassword" />
+            </template>
+          </q-input>
+
+          <q-input v-model="form.password_confirmation" label="Confirm Password"
+            :type="showConfirmPassword ? 'text' : 'password'" outlined rounded dark lazy-rules :rules="[
+              val => !!val || 'Confirm password',
+              val => val === form.password || 'Passwords do not match'
+            ]" :error="!!fieldErrors.password_confirmation" :error-message="fieldErrors.password_confirmation">
+            <template #prepend>
+              <q-icon name="verified_user" />
+            </template>
+
+            <template #append>
+              <q-icon :name="showConfirmPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer"
+                @click="showConfirmPassword = !showConfirmPassword" />
+            </template>
+          </q-input>
+          <div v-if="fieldErrors.general" class="glass-error text-white q-pa-md">
+            {{ fieldErrors.general }}
+          </div>
+          <q-btn type="submit" label="Create Account" class="full-width register-btn" unelevated rounded
+            :loading="loading" />
+
+          <div class="text-center q-mt-lg text-grey-5">
+            Already have an account?
+
+            <router-link to="/login" class="text-primary text-weight-bold" style="text-decoration: none">
+              Login
+            </router-link>
           </div>
 
-          <q-form class="q-gutter-lg" @submit.prevent="onRegister">
-
-            <q-input v-model="form.name" label="Username" outlined rounded dark lazy-rules :rules="[
-              val => !!val || 'Username is required'
-            ]" :error="!!fieldErrors.name" :error-message="fieldErrors.name">
-              <template #prepend>
-                <q-icon name="person" />
-              </template>
-            </q-input>
-
-            <q-input v-model="form.email" label="Email Address" type="email" outlined rounded dark lazy-rules :rules="[
-              val => !!val || 'Email is required'
-            ]" :error="!!fieldErrors.email" :error-message="fieldErrors.email">
-              <template #prepend>
-                <q-icon name="mail" />
-              </template>
-            </q-input>
-
-            <q-input v-model="form.password" label="Password" :type="showPassword ? 'text' : 'password'" outlined
-              rounded dark lazy-rules :rules="[
-                val => !!val || 'Password is required',
-                val => val.length >= 6 || 'Minimum 6 characters'
-              ]" :error="!!fieldErrors.password" :error-message="fieldErrors.password">
-              <template #prepend>
-                <q-icon name="lock" />
-              </template>
-
-              <template #append>
-                <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer"
-                  @click="showPassword = !showPassword" />
-              </template>
-            </q-input>
-
-            <q-input v-model="form.password_confirmation" label="Confirm Password"
-              :type="showConfirmPassword ? 'text' : 'password'" outlined rounded dark lazy-rules :rules="[
-                val => !!val || 'Confirm password',
-                val => val === form.password || 'Passwords do not match'
-              ]" :error="!!fieldErrors.password_confirmation"
-              :error-message="fieldErrors.password_confirmation">
-              <template #prepend>
-                <q-icon name="verified_user" />
-              </template>
-
-              <template #append>
-                <q-icon :name="showConfirmPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer"
-                  @click="showConfirmPassword = !showConfirmPassword" />
-              </template>
-            </q-input>
-            <div v-if="fieldErrors.general" class="glass-error text-white q-pa-md">
-              {{ fieldErrors.general }}
-            </div>
-            <q-btn type="submit" label="Create Account" class="full-width register-btn" unelevated rounded
-              :loading="loading" />
-
-            <div class="text-center q-mt-lg text-grey-5">
-              Already have an account?
-
-              <router-link to="/login" class="text-primary text-weight-bold" style="text-decoration: none">
-                Login
-              </router-link>
-            </div>
-
-          </q-form>
-        </div>
+        </q-form>
       </div>
     </div>
+
   </q-page>
 </template>
 
