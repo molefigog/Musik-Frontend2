@@ -4,13 +4,11 @@ import { Directory, Filesystem } from '@capacitor/filesystem'
 const LOG_FILE_NAME = 'app_crash_log.txt'
 const MAX_LOG_SIZE_BYTES = 2 * 1024 * 1024 // 2MB before rotating
 
-// On Android, Directory.Documents is the shared/user-visible location (good for
-// support/debugging — user or you can pull the file off the device).
-// On iOS, Documents is sandboxed but still app-visible via Files app if configured.
-// Directory.Data is app-private and always writable without permissions, so it's
-// the safe fallback if Documents isn't available (e.g. permission denied).
-const PRIMARY_DIRECTORY = Directory.Documents
-const FALLBACK_DIRECTORY = Directory.Data
+// Directory.Data is app-private and writable on every Android version without
+// storage permissions. Android's legacy storage permissions do not grant access
+// to the shared Documents path on modern Android versions.
+const PRIMARY_DIRECTORY = Directory.Data
+const FALLBACK_DIRECTORY = Directory.Documents
 
 let currentDirectory = PRIMARY_DIRECTORY
 let writeQueue = Promise.resolve()
@@ -157,7 +155,7 @@ async function rotateIfTooLarge(directory) {
                 // If rename fails (e.g. .old already exists on some platforms),
                 // just delete the old file and try again rather than blocking logging.
                 return Filesystem.deleteFile({ path: `${LOG_FILE_NAME}.old`, directory })
-                    .catch(() => { })
+                    .catch(() => {})
                     .then(() =>
                         Filesystem.rename({
                             from: LOG_FILE_NAME,
@@ -266,7 +264,10 @@ function registerVueErrorHandler(app) {
 
     app.config.errorHandler = (error, instance, info) => {
         const componentName =
-            instance?.$?.type?.name || instance?.$options?.name || instance?.type?.name || 'anonymous'
+            instance?.$?.type?.name ||
+            instance?.$options?.name ||
+            instance?.type?.name ||
+            'anonymous'
 
         enqueueWrite('ERROR', 'Vue error captured', {
             source: 'vue.errorHandler',

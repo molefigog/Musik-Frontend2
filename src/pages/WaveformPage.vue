@@ -56,7 +56,7 @@ const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() 
 
 async function loadAudioSource(musicId) {
     const response = await fetch(`${getApiPath()}music/${musicId}/audio`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     })
     if (!response.ok) throw new Error(`Audio request failed with status ${response.status}`)
 
@@ -137,8 +137,10 @@ async function load() {
 
 async function fetchMusic() {
     const response = await fetch(`${getApiPath()}music/${route.params.id}`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Accept: 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     })
+    if (!response.ok) throw new Error(`Track request failed with status ${response.status}`)
+
     const body = await response.json()
     return body.data || body
 }

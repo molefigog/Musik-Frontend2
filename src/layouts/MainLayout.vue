@@ -74,13 +74,13 @@
 
                     <q-item-section>Downloads</q-item-section>
                 </q-item>
-
+                <!-- 
                 <q-item v-if="auth.isLoggedIn" to="/releases" clickable v-ripple>
                     <q-item-section avatar>
                         <q-icon name="album" />
                     </q-item-section>
                     <q-item-section>Releases</q-item-section>
-                </q-item>
+                </q-item> -->
 
                 <q-item to="/settings" clickable v-ripple>
                     <q-item-section avatar>
@@ -119,7 +119,7 @@
                 <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
                 <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
                 <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="album" aria-label="Releases" to="/releases" />
+                <!-- <q-btn v-if="auth.isLoggedIn" flat round dense icon="album" aria-label="Releases" to="/releases" /> -->
 
                 <q-btn v-if="auth.isLoggedIn" flat round dense icon="download" aria-label="Downloads" to="/downloads" />
                 <q-btn v-else flat round dense icon="login" aria-label="Login" to="/login" />
