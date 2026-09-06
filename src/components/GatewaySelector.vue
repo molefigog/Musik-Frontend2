@@ -702,14 +702,14 @@ const payWithPaypal = async () => {
         paypalWaitDialog = $q.dialog({
             title: 'PayPal Payment',
             message: `
-        <div class="text-center q-pa-md">
-          <div class="text-h6">
+        <q-card flat borderd class="text-center q-pa-md">
+          <<q-card-section class="text-h6">
             Waiting for PayPal approval...
-          </div>
-          <div class="q-mt-md">
+          </<q-card-section>
+          <<q-card-section class="q-mt-md">
             Complete the payment in the browser, then return to the app.
-          </div>
-        </div>
+          </<q-card-section>
+        </q-card>
       `,
             html: true,
             persistent: true,

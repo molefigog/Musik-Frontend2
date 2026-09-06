@@ -3,7 +3,7 @@
         <MusicFilters v-model:filters="filters" :genres="genres" :releases="releases" />
 
         <!-- STORE HEADER -->
-        <div class="store-header">
+        <!-- <div class="store-header">
             <div class="brand-block">
                 <div class="brand-icon">
                     <q-icon name="headphones" size="18px" color="white" />
@@ -14,15 +14,15 @@
                 </div>
             </div>
             <div class="header-actions">
-                <!-- <q-btn flat dense no-caps class="header-btn" icon="favorite_border" label="Saved" /> -->
-                <!-- <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart" /> -->
+               <q-btn flat dense no-caps class="header-btn" icon="favorite_border" label="Saved" /> 
+                <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart" /> 
 
-                <!-- <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart"
+                 <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart"
                     :to="{ name: 'cart-checkout' }" :size="$q.screen.gt.sm ? 'md' : 'sm'">
                     <q-badge v-if="cart.count > 0" color="red" floating>{{ cart.count }}</q-badge>
-                </q-btn> -->
+                </q-btn> 
             </div>
-        </div>
+        </div> -->
 
 
         <!-- TRACK LIST HEADER -->

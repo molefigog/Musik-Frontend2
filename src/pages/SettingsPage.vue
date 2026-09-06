@@ -23,8 +23,20 @@
                             <q-item-section side>{{ appInfo.mode }}</q-item-section>
                         </q-item>
                         <q-item>
-                            <q-item-section>API URL</q-item-section>
-                            <q-item-section side class="text-right">{{ appInfo.apiPath }}</q-item-section>
+                            <q-item-section avatar>
+                                <q-icon name="upload" />
+                            </q-item-section>
+                            <q-item-section side class="text-right">
+                                <div class="row items-center no-wrap q-gutter-x-xs">
+
+                                    <a :href="appInfo.apiPath" target="_blank" rel="noopener noreferrer"
+                                        class="text-primary ellipsis" style="max-width: 200px; text-decoration: none;">
+                                        {{ appInfo.apiPath }}
+                                    </a>
+                                    <q-btn dense flat round size="sm" icon="content_copy"
+                                        @click="copyToClipboard(appInfo.apiPath)" />
+                                </div>
+                            </q-item-section>
                         </q-item>
                     </q-list>
                 </q-card-section>
@@ -35,7 +47,7 @@
                     <div class="text-subtitle1 text-weight-medium q-mb-sm">Platform</div>
                     <q-list dense separator>
                         <q-item>
-                            <q-item-section>Detected platform</q-item-section>
+                            <q-item-section>Platform</q-item-section>
                             <q-item-section side>{{ platformInfo.platform }}</q-item-section>
                         </q-item>
                         <q-item>
@@ -178,11 +190,30 @@ import {
 
 const $q = useQuasar()
 
+async function copyToClipboard(text) {
+    try {
+        await navigator.clipboard.writeText(text)
+        $q.notify({
+            message: 'Copied to clipboard',
+            color: 'positive',
+            icon: 'check',
+            position: 'bottom',
+            timeout: 1000,
+        })
+        // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+        $q.notify({
+            message: 'Failed to copy',
+            color: 'negative',
+            icon: 'error',
+        })
+    }
+}
 const appInfo = ref({
     name: process.env.PRODUCT_NAME || 'GW ENT',
-    version: process.env.npm_package_version || '0.0.1',
+    version: process.env.npm_package_version || '0.0.9',
     mode: process.env.DEV ? 'development' : 'production',
-    apiPath: process.env.API_PATH || 'not set',
+    apiPath: process.env.ADMIN_PATH || 'not set',
 })
 
 const platformInfo = ref({
