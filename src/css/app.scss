@@ -6,7 +6,7 @@
     --q-negative: #c10015;
     --q-info: #31ccec;
     --q-warning: #f2c037;
-    --q-dark: #111b29;
+    --q-dark: #040508f7;
     --q-dark-page: #0c0c0e;
 }
 
@@ -20,4 +20,67 @@
     background: #121212;
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glass-card {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.payment-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(0, 153, 255, 0.15), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(138, 43, 226, 0.12), transparent 30%), #090d16;
+}
+// Android Snackbar look for Quasar Notify
+.q-notification {
+    min-height: 48px;
+    max-width: 344px; // Material spec snackbar max width
+    border-radius: 4px;
+    padding: 14px 16px;
+    background: #323232 !important; // Material dark surface
+    color: #fff;
+    box-shadow:
+        0 3px 5px -1px rgba(0, 0, 0, 0.2),
+        0 6px 10px 0 rgba(0, 0, 0, 0.14),
+        0 1px 18px 0 rgba(0, 0, 0, 0.12);
+    font-size: 14px;
+    letter-spacing: 0.0178571429em;
+
+    &__message {
+        font-weight: 400;
+        line-height: 20px;
+    }
+
+    // Action button (e.g. "UNDO") styled like Android's accent text button
+    .q-notification__actions {
+        .q-btn {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.0892857143em;
+            color: #bb86fc; // swap for your brand accent
+            min-width: 0;
+            padding: 0 8px;
+        }
+    }
+
+    // Kill the default icon circle bulk, keep it small/inline
+    .q-notification__icon {
+        font-size: 20px;
+        margin-right: 12px;
+    }
+
+    // Slim progress/timeout bar at the bottom edge, Android-ish
+    .q-notification__progress {
+        height: 2px;
+        background: rgba(255, 255, 255, 0.3);
+    }
+}
+
+// Snackbars stack tight, like Android, not spaced like Material toasts
+.q-notifications__list--bottom {
+    padding-bottom: 8px;
 }

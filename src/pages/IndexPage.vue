@@ -151,14 +151,13 @@
 import { computed, ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
-import { ApiService } from 'src/services/api'
 import {
     sharedPlayAudio,
     sharedSeekTo,
     sharedProgress,
-    registerTracks,
     sharedCurrentId,
     sharedIsPlaying,
 } from 'src/services/audio-player-state'
@@ -166,13 +165,14 @@ import MusicFilters from 'src/components/MusicFilters.vue'
 import { useMusicFilters } from 'src/composables/useMusicFilters'
 import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
+import { useMusicStore } from 'src/stores/music'
 
 const $q = useQuasar()
 const router = useRouter()
-const api = ApiService
 const isPlaying = sharedIsPlaying
 const currentId = sharedCurrentId
-const music = ref([])
+const musicStore = useMusicStore()
+const { music } = storeToRefs(musicStore)
 const progress = sharedProgress
 const cart = useCartStore()
 const notifications = useNotificationsStore()
@@ -574,12 +574,9 @@ const releases = computed(() => {
 
     return [...map.values()]
 })
-const fetchMusic = async () => {
+const fetchMusic = async (force = false) => {
     try {
-        const res = await api.get('/music')
-        music.value = res.data.data
-        registerTracks(music.value)
-
+        await musicStore.fetchMusic(force)
     } catch (err) {
         console.error(err)
         $q.notify({

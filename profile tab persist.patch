@@ -1,0 +1,23 @@
+--- a/src/pages/auth/ProfilePage.vue	2026-09-06 12:54:58.681186095 +0000
++++ b/src/pages/auth/ProfilePage.vue	2026-09-06 12:55:07.462260457 +0000
+@@ -101,7 +101,7 @@
+ import { ApiService } from 'src/services/api'
+ import TransactionLog from 'src/components/TransactionLog.vue'
+ 
+-const tab = ref('profile')
++const tab = ref(localStorage.getItem('profileTab') || 'profile')
+ const auth = useAuthStore()
+ const $q = useQuasar()
+ const api = ApiService
+@@ -115,6 +115,10 @@
+ const sessions = ref([])
+ let paymentPoll
+ 
++watch(tab, (val) => {
++  localStorage.setItem('profileTab', val)
++})
++
+ const form = ref({
+   name: '',
+   email: '',
+ 

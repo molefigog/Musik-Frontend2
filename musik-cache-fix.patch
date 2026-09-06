@@ -1,0 +1,91 @@
+diff --git a/src/pages/IndexPage.vue b/src/pages/IndexPage.vue
+index 3fda739..2f9a3a0 100644
+--- a/src/pages/IndexPage.vue
++++ b/src/pages/IndexPage.vue
+@@ -151,14 +151,13 @@
+ import { computed, ref, onMounted } from 'vue'
+ import { useQuasar } from 'quasar'
+ import { useRouter } from 'vue-router'
++import { storeToRefs } from 'pinia'
+ import { Capacitor } from '@capacitor/core'
+ import { Directory, Filesystem } from '@capacitor/filesystem'
+-import { ApiService } from 'src/services/api'
+ import {
+     sharedPlayAudio,
+     sharedSeekTo,
+     sharedProgress,
+-    registerTracks,
+     sharedCurrentId,
+     sharedIsPlaying,
+ } from 'src/services/audio-player-state'
+@@ -166,13 +165,14 @@ import MusicFilters from 'src/components/MusicFilters.vue'
+ import { useMusicFilters } from 'src/composables/useMusicFilters'
+ import { useCartStore } from 'src/stores/cart'
+ import { useNotificationsStore } from 'src/stores/notifications'
++import { useMusicStore } from 'src/stores/music'
+ 
+ const $q = useQuasar()
+ const router = useRouter()
+-const api = ApiService
+ const isPlaying = sharedIsPlaying
+ const currentId = sharedCurrentId
+-const music = ref([])
++const musicStore = useMusicStore()
++const { music } = storeToRefs(musicStore)
+ const progress = sharedProgress
+ const cart = useCartStore()
+ const notifications = useNotificationsStore()
+@@ -574,12 +574,9 @@ const releases = computed(() => {
+ 
+     return [...map.values()]
+ })
+-const fetchMusic = async () => {
++const fetchMusic = async (force = false) => {
+     try {
+-        const res = await api.get('/music')
+-        music.value = res.data.data
+-        registerTracks(music.value)
+-
++        await musicStore.fetchMusic(force)
+     } catch (err) {
+         console.error(err)
+         $q.notify({
+diff --git a/src/stores/music.js b/src/stores/music.js
+new file mode 100644
+index 0000000..2efa611
+--- /dev/null
++++ b/src/stores/music.js
+@@ -0,0 +1,33 @@
++import { defineStore } from 'pinia'
++import { ref } from 'vue'
++import { ApiService } from 'src/services/api'
++import { registerTracks } from 'src/services/audio-player-state'
++
++const api = ApiService
++
++export const useMusicStore = defineStore('music', () => {
++    const music = ref([])
++    const loaded = ref(false)
++    const loading = ref(false)
++
++    // Fetches the music list once and caches it. Pass force=true to
++    // bypass the cache (e.g. pull-to-refresh). Safe to call from
++    // onMounted on every page visit - it only hits the network once.
++    const fetchMusic = async (force = false) => {
++        if (loaded.value && !force) return music.value
++        if (loading.value) return music.value
++
++        loading.value = true
++        try {
++            const res = await api.get('/music')
++            music.value = res.data.data
++            registerTracks(music.value)
++            loaded.value = true
++            return music.value
++        } finally {
++            loading.value = false
++        }
++    }
++
++    return { music, loaded, loading, fetchMusic }
++})

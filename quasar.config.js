@@ -11,7 +11,7 @@ export default defineConfig((/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['api-config', 'axios', 'pinia', 'logger', 'notifications', 'statusbar'],
+    boot: ['api-config', 'axios', 'pinia', 'logger', 'notifications', 'statusbar', 'notify'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -88,21 +88,6 @@ export default defineConfig((/* ctx */) => {
         // loadingBar: true
         capacitor: {
           androidStatusBarPadding: false, // the WebView is kept below the status bar
-        },
-
-        notify: {
-          position: 'bottom', // Android snackbars always appear at the bottom
-          color: 'grey-10', // Dark charcoal background (#323232 equivalent)
-          textColor: 'white', // White body text
-          timeout: 4000, // Android guidelines recommend 4 to 10 seconds
-          classes: 'android-snackbar', // Custom class for layout adjustments
-          actions: [
-            {
-              label: 'DISMISS', // Uppercase text for Android action buttons
-              color: 'amber', // Vibrant accent color for actions
-              handler: () => {},
-            },
-          ],
         },
       },
 

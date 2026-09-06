@@ -1,6 +1,6 @@
 <template>
-  <q-page class="flex flex-center q-pa-md">
-    <div class="row items-start q-col-gutter-lg" style="max-width: 1000px; width: 100%;">
+  <q-page class="q-pa-md">
+    <div class="row items-start q-col-gutter-lg">
       <!-- SIDEBAR -->
       <div class="col-12 col-md-3">
         <div v-if="$q.screen.gt.sm" class="q-mb-lg">
@@ -55,8 +55,7 @@
                     @click="isPwd3 = !isPwd3" />
                 </template>
               </q-input>
-              <q-btn label="Update Password" class="full-width" color="primary" :loading="loading" @click="update"
-                unelevated />
+              <q-btn label="Update Password" color="primary" :loading="loading" @click="update" unelevated />
             </div>
           </q-tab-panel>
           <!-- SESSIONS TAB -->
@@ -101,7 +100,7 @@ import { useQuasar } from 'quasar'
 import { ApiService } from 'src/services/api'
 import TransactionLog from 'src/components/TransactionLog.vue'
 
-const tab = ref('profile')
+const tab = ref(localStorage.getItem('profileTab') || 'profile')
 const auth = useAuthStore()
 const $q = useQuasar()
 const api = ApiService
@@ -114,6 +113,10 @@ const isPwd3 = ref(true)
 
 const sessions = ref([])
 let paymentPoll
+
+watch(tab, (val) => {
+  localStorage.setItem('profileTab', val)
+})
 
 const form = ref({
   name: '',

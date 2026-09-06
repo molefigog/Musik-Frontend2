@@ -849,7 +849,7 @@ onBeforeUnmount(() => {
 <template>
     <div class="payment-pages">
         <div class="payment-wrappers">
-            <q-card flat class="payment-cards">
+            <q-card flat borderd class="payment-cards">
                 <div class="card-title fredoka text-center">
                     Make Payment
                 </div>

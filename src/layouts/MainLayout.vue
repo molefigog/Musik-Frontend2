@@ -64,7 +64,7 @@
                         <q-icon name="person" />
                     </q-item-section>
 
-                    <q-item-section>Profile</q-item-section>
+                    <q-item-section>Account</q-item-section>
                 </q-item>
 
                 <q-item v-if="auth.isLoggedIn" to="/downloads" clickable v-ripple>
@@ -82,7 +82,7 @@
                     <q-item-section>Releases</q-item-section>
                 </q-item> -->
 
-                <q-item to="/settings" clickable v-ripple>
+                <q-item v-if="isApk" to="/settings" clickable v-ripple>
                     <q-item-section avatar>
                         <q-icon name="settings" />
                     </q-item-section>
@@ -117,7 +117,7 @@
             <div class="row justify-around items-center q-px-sm q-py-xs">
                 <q-btn flat round dense icon="home" aria-label="Home" to="/" />
                 <q-btn v-if="auth.isLoggedIn" flat round dense icon="task_alt" aria-label="Tasks" to="/tasks" />
-                <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Profile" to="/profile" />
+                <q-btn v-if="auth.isLoggedIn" flat round dense icon="person" aria-label="Account" to="/profile" />
                 <q-btn flat round dense icon="settings" aria-label="Settings" to="/settings" />
                 <!-- <q-btn v-if="auth.isLoggedIn" flat round dense icon="album" aria-label="Releases" to="/releases" /> -->
 

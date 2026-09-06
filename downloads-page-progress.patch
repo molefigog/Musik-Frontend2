@@ -1,0 +1,96 @@
+diff --git a/src/pages/DownloadsPage.vue b/src/pages/DownloadsPage.vue
+index a7f6461..043d09d 100644
+--- a/src/pages/DownloadsPage.vue
++++ b/src/pages/DownloadsPage.vue
+@@ -10,6 +10,7 @@ const $q = useQuasar()
+ const notifications = useNotificationsStore()
+ const loading = ref(false)
+ const downloadingMusicId = ref(null)
++const downloadProgress = ref({})
+ const downloads = ref([])
+ const search = ref('')
+ 
+@@ -225,6 +226,23 @@ const filenameForItem = (item) => {
+     return item.file_name || `track-${item.music_id}.${item.extension || 'mp3'}`
+ }
+ 
++const getDownloadProgress = (musicId) => downloadProgress.value[String(musicId)] || null
++
++const downloadProgressPercent = (musicId) => {
++    const state = getDownloadProgress(musicId)
++    if (!state || !state.totalBytes) return 0
++    return Math.max(0, Math.min(1, state.loadedBytes / state.totalBytes))
++}
++
++const downloadProgressLabel = (musicId) => {
++    const state = getDownloadProgress(musicId)
++    if (!state) return ''
++
++    return state.totalBytes
++        ? `Downloading ${Math.round((state.loadedBytes / state.totalBytes) * 100)}%`
++        : `Downloading ${(state.loadedBytes / (1024 * 1024)).toFixed(2)} MB`
++}
++
+ const getPlaybackUrl = async (item) => {
+     const key = String(item.music_id)
+     if (playbackUrls.value[key]) return playbackUrls.value[key]
+@@ -298,9 +316,24 @@ const filenameFromHeader = (headerValue) => {
+ 
+ const downloadTrack = async (item) => {
+     downloadingMusicId.value = item.music_id
++    const progressKey = String(item.music_id)
++    downloadProgress.value = {
++        ...downloadProgress.value,
++        [progressKey]: { loadedBytes: 0, totalBytes: 0 },
++    }
+ 
+     try {
+-        const response = await ApiService.download(`downloads/${item.music_id}/file`)
++        const response = await ApiService.download(`downloads/${item.music_id}/file`, {
++            onDownloadProgress: (event) => {
++                downloadProgress.value = {
++                    ...downloadProgress.value,
++                    [progressKey]: {
++                        loadedBytes: event.loaded,
++                        totalBytes: event.total || 0,
++                    },
++                }
++            },
++        })
+         const headerName = filenameFromHeader(response?.headers?.['content-disposition'])
+         const fallbackName = item.file_name || `track-${item.music_id}.${item.extension || 'mp3'}`
+         const fileName = headerName || fallbackName
+@@ -339,6 +372,9 @@ const downloadTrack = async (item) => {
+         })
+     } finally {
+         downloadingMusicId.value = null
++        const remaining = { ...downloadProgress.value }
++        delete remaining[progressKey]
++        downloadProgress.value = remaining
+     }
+ }
+ 
+@@ -413,6 +449,7 @@ onMounted(fetchDownloads)
+         <q-list v-else-if="filteredDownloads.length" separator>
+             <q-item v-for="(item, index) in filteredDownloads" :key="item.music_id">
+                 <template #default>
++                    <div class="column full-width q-gutter-xs">
+                     <div class="row full-width items-center q-gutter-md">
+                         <!-- Number/Icon -->
+                         <div style="flex: 0 0 40px" class="text-center">
+@@ -463,6 +500,15 @@ onMounted(fetchDownloads)
+                         <q-btn round flat dense icon="download" :loading="downloadingMusicId === item.music_id"
+                             @click="downloadTrack(item)" />
+                     </div>
++
++                    <!-- Download progress -->
++                    <div v-if="getDownloadProgress(item.music_id)" class="q-px-sm">
++                        <q-linear-progress :value="downloadProgressPercent(item.music_id)"
++                            :indeterminate="!getDownloadProgress(item.music_id)?.totalBytes" color="positive"
++                            track-color="grey-9" rounded size="4px" />
++                        <div class="text-caption text-grey-5 q-mt-xs">{{ downloadProgressLabel(item.music_id) }}</div>
++                    </div>
++                    </div>
+                 </template>
+             </q-item>
+         </q-list>

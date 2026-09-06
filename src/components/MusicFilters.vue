@@ -1,26 +1,29 @@
 <template>
     <div class="wc-filter q-mb-md" :class="isDark ? 'theme-dark' : 'theme-light'">
-        <div class="wc-filter-head">
-            <div class="wc-filter-title">Filter Products</div>
+        <!-- <div class="wc-filter-head">
+
             <div class="wc-filter-actions">
-                <q-btn flat dense no-caps icon="tune" :label="showFilters ? 'Less filters' : 'More filters'"
+                <q-btn flat dense no-caps :icon="showFilters ? 'filter_list_off' : 'filter_list'"
                     :color="hasActiveFilters ? 'primary' : (isDark ? 'grey-4' : 'grey-7')"
                     @click="showFilters = !showFilters" />
-                <q-btn flat dense no-caps icon="restart_alt" label="Reset" :color="isDark ? 'grey-4' : 'grey-7'"
-                    @click="resetFilters" />
+                <q-btn flat dense no-caps icon="cancel" :color="isDark ? 'grey-4' : 'grey-7'" @click="resetFilters" />
             </div>
-        </div>
+        </div> -->
 
         <div class="wc-filter-body">
-            <div class="row q-col-gutter-sm items-start">
-                <div class="col-12">
-                    <q-input v-model="local.search" outlined dense :dark="isDark" debounce="250"
-                        placeholder="Search tracks, artists, albums">
-                        <template #prepend>
-                            <q-icon name="search" />
-                        </template>
-                    </q-input>
-                </div>
+            <div class="row items-center no-wrap q-gutter-x-sm">
+                <q-btn flat dense no-caps :icon="showFilters ? 'filter_list_off' : 'filter_list'"
+                    :color="hasActiveFilters ? 'primary' : (isDark ? 'grey-4' : 'grey-7')"
+                    @click="showFilters = !showFilters" />
+
+                <q-input v-model="local.search" outlined dense :dark="isDark" debounce="250"
+                    placeholder="Search tracks, artists, albums" class="col">
+                    <template #prepend>
+                        <q-icon name="search" />
+                    </template>
+                </q-input>
+
+                <q-btn flat dense no-caps icon="cancel" :color="isDark ? 'grey-4' : 'grey-7'" @click="resetFilters" />
             </div>
 
             <q-slide-transition>

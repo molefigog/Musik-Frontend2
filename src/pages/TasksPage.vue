@@ -16,7 +16,7 @@
             style="bottom: 24px;" />
 
         <q-dialog v-model="createDialogOpen">
-            <q-card style="min-width: min(92vw, 420px)">
+            <q-card flat bordered style="min-width: min(92vw, 420px)">
                 <q-card-section>
                     <div class="text-h6">Create task</div>
                 </q-card-section>

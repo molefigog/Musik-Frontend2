@@ -1,7 +1,7 @@
 <template>
     <q-page class="login-page flex flex-center q-pa-md">
         <div class="login-wrapper">
-            <q-card flat class="glass-card overflow-hidden">
+            <q-card flat bordered class="glass-card overflow-hidden">
 
 
                 <!-- RIGHT SIDE -->
