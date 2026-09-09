@@ -1,0 +1,456 @@
+diff --git a/src-capacitor/android/app/build.gradle b/src-capacitor/android/app/build.gradle
+index 41425d7..1bec4f2 100644
+--- a/src-capacitor/android/app/build.gradle
++++ b/src-capacitor/android/app/build.gradle
+@@ -44,6 +44,10 @@ dependencies {
+     // Firebase Messaging — needed for custom FirebaseMessagingService
+     implementation platform('com.google.firebase:firebase-bom:33.5.1')
+     implementation 'com.google.firebase:firebase-messaging'
++
++    // PayPal native card payments (custom PayPalCardPlugin) — version confirmed
++    // against https://paypal.github.io/paypal-android/CardPayments/ (2.3.0)
++    implementation 'com.paypal.android:card-payments:2.3.0'
+ }
+ 
+ apply from: 'capacitor.build.gradle'
+diff --git a/src-capacitor/android/app/src/main/AndroidManifest.xml b/src-capacitor/android/app/src/main/AndroidManifest.xml
+index d4786a4..3214b89 100644
+--- a/src-capacitor/android/app/src/main/AndroidManifest.xml
++++ b/src-capacitor/android/app/src/main/AndroidManifest.xml
+@@ -24,6 +24,12 @@
+                 <category android:name="android.intent.category.BROWSABLE" />
+                 <data android:scheme="com.streama.app" android:host="paypal-callback" />
+             </intent-filter>
++            <intent-filter>
++                <action android:name="android.intent.action.VIEW" />
++                <category android:name="android.intent.category.DEFAULT" />
++                <category android:name="android.intent.category.BROWSABLE" />
++                <data android:scheme="com.streama.app" android:host="card-3ds-callback" />
++            </intent-filter>
+         </activity>
+ 
+         <provider
+diff --git a/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java b/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
+index f06f0ac..4cb12c1 100644
+--- a/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
++++ b/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
+@@ -1,5 +1,6 @@
+ package com.streama.app;
+ 
++import android.content.Intent;
+ import android.os.Bundle;
+ import com.getcapacitor.BridgeActivity;
+ 
+@@ -7,6 +8,21 @@ public class MainActivity extends BridgeActivity {
+     @Override
+     public void onCreate(Bundle savedInstanceState) {
+         registerPlugin(TorchPlugin.class);
++        registerPlugin(PayPalCardPlugin.class);
+         super.onCreate(savedInstanceState);
+     }
++
++    @Override
++    public void onNewIntent(Intent intent) {
++        super.onNewIntent(intent);
++
++        // Route the 3D Secure browser-switch return back into the card plugin.
++        // BridgeActivity already forwards this intent to Capacitor's App plugin
++        // for the existing PayPal-wallet deep link (com.streama.app://paypal-callback),
++        // so this is additive, not a replacement.
++        com.getcapacitor.PluginHandle handle = getBridge().getPlugin("PayPalCard");
++        if (handle != null && handle.getInstance() instanceof PayPalCardPlugin) {
++            ((PayPalCardPlugin) handle.getInstance()).handleNewIntent(intent);
++        }
++    }
+ }
+\ No newline at end of file
+diff --git a/src-capacitor/android/app/src/main/java/com/streama/app/PayPalCardPlugin.java b/src-capacitor/android/app/src/main/java/com/streama/app/PayPalCardPlugin.java
+new file mode 100644
+index 0000000..2a36fd5
+--- /dev/null
++++ b/src-capacitor/android/app/src/main/java/com/streama/app/PayPalCardPlugin.java
+@@ -0,0 +1,180 @@
++package com.streama.app;
++
++import android.content.Intent;
++
++import com.getcapacitor.JSObject;
++import com.getcapacitor.Plugin;
++import com.getcapacitor.PluginCall;
++import com.getcapacitor.PluginMethod;
++import com.getcapacitor.annotation.CapacitorPlugin;
++
++import com.paypal.android.corepayments.CoreConfig;
++import com.paypal.android.corepayments.Environment;
++import com.paypal.android.corepayments.Address;
++import com.paypal.android.corepayments.PayPalSDKError;
++import com.paypal.android.cardpayments.Card;
++import com.paypal.android.cardpayments.CardClient;
++import com.paypal.android.cardpayments.CardRequest;
++import com.paypal.android.cardpayments.CardApproveOrderCallback;
++import com.paypal.android.cardpayments.CardApproveOrderResult;
++import com.paypal.android.cardpayments.CardFinishApproveOrderResult;
++import com.paypal.android.cardpayments.threedsecure.SCA;
++
++/**
++ * Wraps PayPal's native `card-payments` v2 SDK (confirmed against
++ * https://paypal.github.io/paypal-android/CardPayments/ v2.3.0) so Quasar can
++ * drive an in-app native card form with no browser tab - a 3D Secure
++ * challenge is the one exception, and even that returns through the deep
++ * link declared in AndroidManifest.xml rather than a full browser hop.
++ *
++ * v2 of the SDK is callback-based (no more listener interfaces), and
++ * approveOrder() can come back needing a 3DS challenge, which is why this
++ * plugin keeps the PluginCall alive across handleNewIntent().
++ *
++ * JS side (Capacitor.Plugins.PayPalCard):
++ *   initialize({ clientId, environment })              // "sandbox" | "live"
++ *   payWithCard({ orderId, returnUrl, card: {...} })
++ *
++ * The plugin only ATTACHES the card to the order and reports back whether
++ * PayPal approved it. Your Laravel backend still owns create-order and
++ * capture-order via the Orders v2 API - never trust a client-reported amount.
++ */
++@CapacitorPlugin(name = "PayPalCard")
++public class PayPalCardPlugin extends Plugin {
++
++    private CardClient cardClient;
++    private PluginCall pendingCall;
++
++    @PluginMethod
++    public void initialize(PluginCall call) {
++        String clientId = call.getString("clientId");
++        String envParam = call.getString("environment", "sandbox");
++
++        if (clientId == null || clientId.isEmpty()) {
++            call.reject("clientId is required");
++            return;
++        }
++
++        Environment env = "live".equalsIgnoreCase(envParam) ? Environment.LIVE : Environment.SANDBOX;
++        CoreConfig config = new CoreConfig(clientId, env);
++
++        cardClient = new CardClient(getContext(), config);
++
++        call.resolve();
++    }
++
++    @PluginMethod
++    public void payWithCard(PluginCall call) {
++        if (cardClient == null) {
++            call.reject("Call initialize() before payWithCard()");
++            return;
++        }
++
++        String orderId = call.getString("orderId");
++        String returnUrl = call.getString("returnUrl");
++        JSObject cardObj = call.getObject("card");
++
++        if (orderId == null || returnUrl == null || cardObj == null) {
++            call.reject("orderId, returnUrl and card are required");
++            return;
++        }
++
++        Address billingAddress = null;
++        JSObject billing = cardObj.getJSObject("billingAddress");
++        if (billing != null) {
++            // Address(countryCode, streetAddress, extendedAddress, locality, region, postalCode)
++            billingAddress = new Address(
++                billing.getString("countryCode", ""),
++                billing.getString("streetAddress", null),
++                billing.getString("extendedAddress", null),
++                billing.getString("locality", null),
++                billing.getString("region", null),
++                billing.getString("postalCode", null)
++            );
++        }
++
++        // Card(number, expirationMonth, expirationYear, securityCode, cardholderName, billingAddress)
++        Card card = new Card(
++            cardObj.getString("number"),
++            cardObj.getString("expirationMonth"),
++            cardObj.getString("expirationYear"),
++            cardObj.getString("securityCode"),
++            null,
++            billingAddress
++        );
++
++        // SCA_WHEN_REQUIRED only launches the 3D Secure challenge when the
++        // card issuer actually requires it - keep this unless you have a
++        // specific reason to force it on every transaction.
++        CardRequest request = new CardRequest(orderId, card, returnUrl, SCA.SCA_WHEN_REQUIRED);
++
++        pendingCall = call;
++        call.setKeepAlive(true);
++
++        cardClient.approveOrder(request, new CardApproveOrderCallback() {
++            @Override
++            public void onCardApproveOrderResult(CardApproveOrderResult result) {
++                handleApproveOrderResult(result);
++            }
++        });
++    }
++
++    private void handleApproveOrderResult(CardApproveOrderResult result) {
++        if (result instanceof CardApproveOrderResult.Success) {
++            CardApproveOrderResult.Success success = (CardApproveOrderResult.Success) result;
++            resolveSuccess(success.getOrderId(), success.getStatus());
++
++        } else if (result instanceof CardApproveOrderResult.AuthorizationRequired) {
++            // 3D Secure required - launches a short browser-switch challenge.
++            // finishApproveOrder() in handleNewIntent() resolves the call once
++            // the user returns via the card-3ds-callback deep link.
++            CardApproveOrderResult.AuthorizationRequired auth =
++                (CardApproveOrderResult.AuthorizationRequired) result;
++            cardClient.presentAuthChallenge(getActivity(), auth.getAuthChallenge());
++
++        } else if (result instanceof CardApproveOrderResult.Failure) {
++            CardApproveOrderResult.Failure failure = (CardApproveOrderResult.Failure) result;
++            rejectWithError(failure.getError());
++        }
++    }
++
++    /** Forwarded from MainActivity.onNewIntent() for the 3DS browser-switch return. */
++    public void handleNewIntent(Intent intent) {
++        if (cardClient == null || pendingCall == null) return;
++
++        CardFinishApproveOrderResult result = cardClient.finishApproveOrder(intent);
++        if (result == null) return; // not a card-payments deep link - ignore
++
++        if (result instanceof CardFinishApproveOrderResult.Success) {
++            CardFinishApproveOrderResult.Success success = (CardFinishApproveOrderResult.Success) result;
++            resolveSuccess(success.getOrderId(), success.getStatus());
++
++        } else if (result instanceof CardFinishApproveOrderResult.Failure) {
++            CardFinishApproveOrderResult.Failure failure = (CardFinishApproveOrderResult.Failure) result;
++            rejectWithError(failure.getError());
++
++        } else if (result instanceof CardFinishApproveOrderResult.Canceled) {
++            JSObject ret = new JSObject();
++            ret.put("cancelled", true);
++            pendingCall.resolve(ret);
++            pendingCall = null;
++
++        }
++        // CardFinishApproveOrderResult.NoResult - not enough info yet, leave pendingCall alive
++    }
++
++    private void resolveSuccess(String orderId, String status) {
++        if (pendingCall == null) return;
++        JSObject ret = new JSObject();
++        ret.put("orderId", orderId);
++        ret.put("status", status);
++        pendingCall.resolve(ret);
++        pendingCall = null;
++    }
++
++    private void rejectWithError(PayPalSDKError error) {
++        if (pendingCall == null) return;
++        pendingCall.reject(error.getErrorDescription(), String.valueOf(error.getCode()));
++        pendingCall = null;
++    }
++}
+diff --git a/src/components/GatewaySelector.vue b/src/components/GatewaySelector.vue
+index cc09300..1a256ef 100644
+--- a/src/components/GatewaySelector.vue
++++ b/src/components/GatewaySelector.vue
+@@ -6,7 +6,11 @@ import { ApiService } from 'src/services/api'
+ import { useAuthStore } from 'stores/auth'
+ import { Browser } from '@capacitor/browser'
+ import { App } from '@capacitor/app'
+-import { Capacitor } from '@capacitor/core'
++import { Capacitor, registerPlugin } from '@capacitor/core'
++
++// Custom native plugin (src-capacitor/android/.../PayPalCardPlugin.java) -
++// only resolves on native platforms; unused/no-op on web.
++const PayPalCard = registerPlugin('PayPalCard')
+ 
+ const props = defineProps({
+     // ---- shared across every method ----
+@@ -104,13 +108,23 @@ const methodOptions = ref([
+     { label: 'Cpay Card', value: 'card', icon: 'credit_card' },
+     { label: 'Cpay Mobile', value: 'mobile', icon: 'smartphone' },
+     { label: 'M-Pesa', value: 'mpesa', icon: 'payments' },
+-    { label: 'PayPal', value: 'paypal', icon: 'account_balance_wallet' }
++    { label: 'PayPal', value: 'paypal', icon: 'account_balance_wallet' },
++    // Native-only: real PayPal card form via the custom PayPalCardPlugin.
++    // On web this stays hidden - use the 'paypal' wallet tab there instead.
++    ...(Capacitor.isNativePlatform()
++        ? [{ label: 'PayPal Card', value: 'paypal_card', icon: 'credit_card' }]
++        : [])
+ ])
+ 
+ const loadPaymentGateways = async () => {
+     try {
+         const response = await ApiService.get('/v1/payment-gateways')
+         const enabled = new Set((response.data?.data || []).map((gateway) => gateway.slug))
++
++        // paypal_card isn't a distinct gateway on the backend - it rides on
++        // whatever the 'paypal' slug says, since it's the same provider.
++        if (enabled.has('paypal')) enabled.add('paypal_card')
++
+         methodOptions.value = methodOptions.value.filter((option) => enabled.has(option.value))
+ 
+         if (!enabled.has(selectedMethod.value)) {
+@@ -145,6 +159,13 @@ const mpesaPollUi = ref({
+ let paypalWaitDialog = null
+ let paypalUrlListener = null
+ 
++// ---------- paypal card (native) state ----------
++const ppCardNumber = ref('')
++const ppCardExpiry = ref('') // MM/YY, split before sending
++const ppCardCvv = ref('')
++const ppCardCountry = ref('LS')
++let paypalCardInitialized = false
++
+ watch(selectedMethod, () => {
+     statusMessage.value = ''
+     otp.value = ''
+@@ -157,6 +178,7 @@ const currentSubtitle = computed(() => {
+     if (selectedMethod.value === 'mobile') return 'Secure mobile transaction'
+     if (selectedMethod.value === 'mpesa') return 'Secure mobile payment experience'
+     if (selectedMethod.value === 'paypal') return "You'll be redirected to PayPal to approve this payment"
++    if (selectedMethod.value === 'paypal_card') return 'Pay by card, powered by PayPal - no browser needed'
+     return ''
+ })
+ 
+@@ -831,6 +853,98 @@ const handlePaypalAppUrlOpen = async (event) => {
+     await capturePaypalOrder(token, payerId)
+ }
+ 
++// =====================================================================
++// PAYPAL CARD (native, custom PayPalCardPlugin - Android only for now)
++// =====================================================================
++const payWithPaypalCard = async () => {
++    if (!Capacitor.isNativePlatform()) {
++        $q.notify({ type: 'warning', message: 'Card payments via PayPal are only available in the app', position: 'top' })
++        return
++    }
++
++    const [expMonth, expYear] = ppCardExpiry.value.split('/').map((s) => s.trim())
++
++    if (!ppCardNumber.value || !expMonth || !expYear || !ppCardCvv.value) {
++        $q.notify({ type: 'warning', message: 'Fill in all card fields', position: 'top' })
++        return
++    }
++
++    loading.value = true
++    statusMessage.value = ''
++
++    try {
++        // Reuses the same order-creation endpoint as the wallet flow - it
++        // already returns { order_id }, which is all the card SDK needs.
++        const orderRes = await ApiService.post(props.paypalCreateOrderEndpoint, {
++            amount: props.amount,
++            item_id: props.itemId,
++            item_type: props.itemType,
++            description: props.description,
++            service_type: props.serviceType,
++            title: props.description,
++            client: 'mobile'
++        })
++
++        const orderId = orderRes.data?.order_id
++        if (!orderId) throw new Error('No order_id returned from server')
++
++        if (!paypalCardInitialized) {
++            const configRes = await ApiService.get('/v1/paypal/config')
++            await PayPalCard.initialize({
++                clientId: configRes.data.client_id,
++                environment: configRes.data.environment
++            })
++            paypalCardInitialized = true
++        }
++
++        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear
++
++        const result = await PayPalCard.payWithCard({
++            orderId,
++            returnUrl: 'com.streama.app://card-3ds-callback',
++            card: {
++                number: ppCardNumber.value.replace(/\s+/g, ''),
++                expirationMonth: expMonth.padStart(2, '0'),
++                expirationYear: fullYear,
++                securityCode: ppCardCvv.value,
++                billingAddress: {
++                    countryCode: ppCardCountry.value
++                }
++            }
++        })
++
++        if (result?.cancelled) {
++            statusMessage.value = 'Payment cancelled'
++            $q.notify({ type: 'warning', message: statusMessage.value, position: 'top' })
++            emit('cancelled', { method: 'paypal_card' })
++            return
++        }
++
++        // Card was approved by PayPal - capture through the SAME server
++        // endpoint the wallet flow uses (it only needs order_id).
++        await capturePaypalOrder(orderId)
++
++        ppCardNumber.value = ''
++        ppCardExpiry.value = ''
++        ppCardCvv.value = ''
++
++    } catch (error) {
++        console.log(error)
++        statusMessage.value = 'Card payment failed'
++
++        $q.notify({
++            type: 'negative',
++            message: error?.message || error?.response?.data?.message || statusMessage.value,
++            position: 'top'
++        })
++
++        emit('error', { method: 'paypal_card', error })
++
++    } finally {
++        loading.value = false
++    }
++}
++
+ onMounted(async () => {
+     await loadPaymentGateways()
+     paypalUrlListener = await App.addListener('appUrlOpen', handlePaypalAppUrlOpen)
+@@ -985,6 +1099,40 @@ onBeforeUnmount(() => {
+ 
+                 </div>
+ 
++                <!-- PAYPAL CARD (native) -->
++                <q-form v-else-if="selectedMethod === 'paypal_card'" class="form-section" @submit.prevent="payWithPaypalCard">
++
++                    <q-input v-model="ppCardNumber" label="Card Number" dark dense mask="#### #### #### ####"
++                        placeholder="4111 1111 1111 1111">
++                        <template #prepend>
++                            <q-icon name="credit_card" />
++                        </template>
++                    </q-input>
++
++                    <div class="row q-col-gutter-sm">
++                        <div class="col-6">
++                            <q-input v-model="ppCardExpiry" label="MM/YY" dark dense mask="##/##"
++                                placeholder="01/28" />
++                        </div>
++                        <div class="col-6">
++                            <q-input v-model="ppCardCvv" label="CVV" dark dense mask="####" placeholder="123" />
++                        </div>
++                    </div>
++
++                    <q-input v-model="ppCardCountry" label="Billing Country (2-letter code)" dark dense
++                        maxlength="2" placeholder="LS" />
++
++                    <div v-if="statusMessage" class="status-box">
++                        {{ statusMessage }}
++                    </div>
++
++                    <div class="btn-wrap">
++                        <q-btn type="submit" :label="buttonLabel" unelevated no-caps :loading="loading"
++                            class="pay-btn" />
++                    </div>
++
++                </q-form>
++
+             </q-card>
+ 
+         </div>

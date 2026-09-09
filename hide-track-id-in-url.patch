@@ -1,0 +1,135 @@
+diff --git a/src/pages/IndexPage.vue b/src/pages/IndexPage.vue
+index 2f9a3a0..d61f3a0 100644
+--- a/src/pages/IndexPage.vue
++++ b/src/pages/IndexPage.vue
+@@ -166,6 +166,7 @@ import { useMusicFilters } from 'src/composables/useMusicFilters'
+ import { useCartStore } from 'src/stores/cart'
+ import { useNotificationsStore } from 'src/stores/notifications'
+ import { useMusicStore } from 'src/stores/music'
++import { buildTrackSlug } from 'src/utils/track-slug'
+ 
+ const $q = useQuasar()
+ const router = useRouter()
+@@ -218,12 +219,12 @@ const isDownloadIndeterminate = (trackId) => {
+     return Boolean(state?.status === 'downloading' && state?.totalBytes === 0)
+ }
+ const goToTrackDetails = (track = selectedTrack.value) => {
+-    const trackId = track?.id || selectedTrack.value?.id
+-    if (!trackId) return
++    const targetTrack = track?.id ? track : selectedTrack.value
++    if (!targetTrack?.id) return
+ 
+     mobileActionsOpen.value = false
+     selectedTrack.value = null
+-    router.push({ name: 'Track', params: { id: trackId } })
++    router.push({ name: 'Track', params: { slug: buildTrackSlug(targetTrack) } })
+ }
+ const downloadProgressValue = (trackId) => {
+     const percent = Number(getDownloadState(trackId)?.progress || 0)
+diff --git a/src/pages/SongDetails.vue b/src/pages/SongDetails.vue
+index 5fc7409..fd209a9 100644
+--- a/src/pages/SongDetails.vue
++++ b/src/pages/SongDetails.vue
+@@ -150,6 +150,7 @@ import { useNotificationsStore } from 'src/stores/notifications'
+ import { useAudioPlayer } from 'src/composables/useAudioPlayer'
+ import { useTrackDownload } from 'src/composables/useTrackDownload'
+ import { Capacitor } from '@capacitor/core'
++import { buildTrackSlug, parseTrackSlug } from 'src/utils/track-slug'
+ 
+ const $q = useQuasar()
+ const api = ApiService
+@@ -220,7 +221,9 @@ async function fetchTrack() {
+     loading.value = true
+     loadError.value = false
+     try {
+-        const { data } = await api.get(`/music/${route.params.id}`)
++        const trackId = parseTrackSlug(route.params.slug)
++        if (!trackId) throw new Error('Invalid track link')
++        const { data } = await api.get(`/music/${trackId}`)
+         track.value = data.data
+     } catch (err) {
+         console.error(err)
+@@ -247,7 +250,7 @@ function formatDuration(seconds) {
+ 
+ function getTrackShareUrl() {
+     const appUrl = String(import.meta.env.VITE_PUBLIC_APP_URL || 'https://gw-ent.co.za').replace(/\/$/, '')
+-    return `${appUrl}/music/${encodeURIComponent(track.value.id)}`
++    return `${appUrl}/music/${buildTrackSlug(track.value)}`
+ }
+ 
+ function getShareData() {
+@@ -394,7 +397,7 @@ function addTrackToCart(track) {
+ }
+ 
+ watch(
+-    () => route.params.id,
++    () => route.params.slug,
+     () => {
+         stopAudio()
+         fetchTrack()
+diff --git a/src/router/routes.js b/src/router/routes.js
+index e264b97..7fa1c28 100644
+--- a/src/router/routes.js
++++ b/src/router/routes.js
+@@ -22,7 +22,7 @@ const routes = [
+                 component: () => import('pages/TasksPage.vue'),
+             },
+             {
+-                path: '/music/:id',
++                path: '/music/:slug',
+                 name: 'Track',
+                 meta: { title: 'Track' },
+                 component: () => import('pages/SongDetails.vue'),
+diff --git a/src/utils/track-slug.js b/src/utils/track-slug.js
+new file mode 100644
+index 0000000..e70ea7a
+--- /dev/null
++++ b/src/utils/track-slug.js
+@@ -0,0 +1,47 @@
++// Builds and parses a "pretty" URL segment for a track, e.g.
++//   /music/midnight-vibes-6f
++// instead of exposing the raw sequential database id, e.g. /music/5
++//
++// This does NOT require a `slug` column in the DB — it derives a readable
++// slug from the track title on the fly, and hides the numeric id behind a
++// simple reversible offset + base36 encoding so it isn't shown to users as
++// a plain incrementing number. It is obfuscation, not real security — treat
++// it the same as before for anything that actually needs access control.
++
++// Change this if you want a different obfuscation "key". Keep it stable
++// once deployed, or previously-shared links will stop resolving.
++const ID_OFFSET = 104729 // arbitrary prime, purely to stop the id from being a small obvious integer
++
++export function slugify(text = '') {
++    return String(text)
++        .toLowerCase()
++        .trim()
++        .replace(/[^a-z0-9]+/g, '-')
++        .replace(/^-+|-+$/g, '')
++        .slice(0, 60) || 'track'
++}
++
++export function encodeTrackId(id) {
++    const n = Number(id)
++    if (!Number.isFinite(n)) return String(id)
++    return (n + ID_OFFSET).toString(36)
++}
++
++export function decodeTrackId(code) {
++    const n = parseInt(code, 36)
++    if (!Number.isFinite(n)) return null
++    return n - ID_OFFSET
++}
++
++// Full slug for a track object, e.g. "midnight-vibes-6f"
++export function buildTrackSlug(track) {
++    if (!track?.id) return ''
++    return `${slugify(track.title)}-${encodeTrackId(track.id)}`
++}
++
++// Pulls the real numeric id back out of a route param like "midnight-vibes-6f"
++export function parseTrackSlug(slug) {
++    const parts = String(slug || '').split('-')
++    const code = parts[parts.length - 1]
++    return decodeTrackId(code)
++}

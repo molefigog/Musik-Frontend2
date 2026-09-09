@@ -6,8 +6,13 @@ import { ApiService } from 'src/services/api'
 import { useAuthStore } from 'stores/auth'
 import { Browser } from '@capacitor/browser'
 import { App } from '@capacitor/app'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 
+// Custom native plugin (src-capacitor/android/.../PayPalCardPlugin.java) -
+// only resolves on native platforms; unused/no-op on web.
+const PayPalCard = registerPlugin('PayPalCard')
+const PayPalWeb = registerPlugin('PayPalWeb')
+let paypalWebInitialized = false
 const props = defineProps({
     // ---- shared across every method ----
     amount: {
@@ -100,17 +105,28 @@ const loading = ref(false)
 const statusMessage = ref('')
 const msisdn = ref('') // shared by card / mobile / mpesa - same real-world phone number
 
+console.log('[PayPalCard debug] isNative:', Capacitor.isNativePlatform(), 'platform:', Capacitor.getPlatform())
 const methodOptions = ref([
     { label: 'Cpay Card', value: 'card', icon: 'credit_card' },
     { label: 'Cpay Mobile', value: 'mobile', icon: 'smartphone' },
     { label: 'M-Pesa', value: 'mpesa', icon: 'payments' },
-    { label: 'PayPal', value: 'paypal', icon: 'account_balance_wallet' }
+    { label: 'PayPal', value: 'paypal', icon: 'account_balance_wallet' },
+    // Native-only: real PayPal card form via the custom PayPalCardPlugin.
+    // On web this stays hidden - use the 'paypal' wallet tab there instead.
+    ...(Capacitor.isNativePlatform()
+        ? [{ label: 'PayPal Card', value: 'paypal_card', icon: 'credit_card' }]
+        : [])
 ])
 
 const loadPaymentGateways = async () => {
     try {
         const response = await ApiService.get('/v1/payment-gateways')
         const enabled = new Set((response.data?.data || []).map((gateway) => gateway.slug))
+
+        // paypal_card isn't a distinct gateway on the backend - it rides on
+        // whatever the 'paypal' slug says, since it's the same provider.
+        if (enabled.has('paypal')) enabled.add('paypal_card')
+
         methodOptions.value = methodOptions.value.filter((option) => enabled.has(option.value))
 
         if (!enabled.has(selectedMethod.value)) {
@@ -144,6 +160,13 @@ const mpesaPollUi = ref({
 // ---------- paypal-only state (not reactive - never rendered) ----------
 let paypalWaitDialog = null
 let paypalUrlListener = null
+let paypalWebResultListener = null
+// ---------- paypal card (native) state ----------
+const ppCardNumber = ref('')
+const ppCardExpiry = ref('') // MM/YY, split before sending
+const ppCardCvv = ref('')
+const ppCardCountry = ref('LS')
+let paypalCardInitialized = false
 
 watch(selectedMethod, () => {
     statusMessage.value = ''
@@ -157,6 +180,7 @@ const currentSubtitle = computed(() => {
     if (selectedMethod.value === 'mobile') return 'Secure mobile transaction'
     if (selectedMethod.value === 'mpesa') return 'Secure mobile payment experience'
     if (selectedMethod.value === 'paypal') return "You'll be redirected to PayPal to approve this payment"
+    if (selectedMethod.value === 'paypal_card') return 'Pay by card, powered by PayPal - no browser needed'
     return ''
 })
 
@@ -672,6 +696,82 @@ const hidePaypalWaitDialog = () => {
     }
 }
 
+// const payWithPaypal = async () => {
+//     loading.value = true
+//     statusMessage.value = ''
+
+//     try {
+//         const webResultUrl = `${window.location.origin}/paypal/result`
+//         const useNativeDeepLink = Capacitor.isNativePlatform()
+//         const nativeResultUrl = 'com.streama.app://paypal-callback'
+
+//         const res = await ApiService.post(props.paypalCreateOrderEndpoint, {
+//             amount: props.amount,
+//             item_id: props.itemId,
+//             item_type: props.itemType,
+//             description: props.description,
+//             service_type: props.serviceType,
+//             title: props.description,
+//             client: useNativeDeepLink ? 'mobile' : 'web',
+//             return_url: useNativeDeepLink ? nativeResultUrl : webResultUrl,
+//             cancel_url: useNativeDeepLink ? nativeResultUrl : webResultUrl
+//         })
+
+//         const approvalUrl = res.data?.approval_url
+
+//         if (!approvalUrl) {
+//             throw new Error('No approval_url returned from server')
+//         }
+
+//         paypalWaitDialog = $q.dialog({
+//             title: 'PayPal Payment',
+//             message: `
+//         <q-card flat borderd class="text-center q-pa-md">
+//           <<q-card-section class="text-h6">
+//             Waiting for PayPal approval...
+//           </<q-card-section>
+//           <<q-card-section class="q-mt-md">
+//             Complete the payment in the browser, then return to the app.
+//           </<q-card-section>
+//         </q-card>
+//       `,
+//             html: true,
+//             persistent: true,
+//             ok: false,
+//             cancel: {
+//                 label: 'Dismiss',
+//                 flat: true,
+//                 color: 'negative'
+//             }
+//         })
+
+//         paypalWaitDialog.onCancel(() => {
+//             hidePaypalWaitDialog()
+//             statusMessage.value = 'Payment is still processing. You can continue using the app.'
+//         })
+
+//         if (Capacitor.isNativePlatform()) {
+//             await Browser.open({ url: approvalUrl })
+//         } else {
+//             window.location.href = approvalUrl
+//         }
+
+//     } catch (error) {
+//         console.log(error)
+//         statusMessage.value = 'Unable to start PayPal payment'
+
+//         $q.notify({
+//             type: 'negative',
+//             message: error?.response?.data?.message || statusMessage.value,
+//             position: 'top'
+//         })
+
+//         emit('error', { method: 'paypal', error })
+
+//     } finally {
+//         loading.value = false
+//     }
+// }
 const payWithPaypal = async () => {
     loading.value = true
     statusMessage.value = ''
@@ -693,23 +793,17 @@ const payWithPaypal = async () => {
             cancel_url: useNativeDeepLink ? nativeResultUrl : webResultUrl
         })
 
-        const approvalUrl = res.data?.approval_url
-
-        if (!approvalUrl) {
-            throw new Error('No approval_url returned from server')
-        }
-
         paypalWaitDialog = $q.dialog({
             title: 'PayPal Payment',
             message: `
-        <q-card flat borderd class="text-center q-pa-md">
-          <<q-card-section class="text-h6">
+        <div class="text-center q-pa-md">
+          <div class="text-h6">
             Waiting for PayPal approval...
-          </<q-card-section>
-          <<q-card-section class="q-mt-md">
-            Complete the payment in the browser, then return to the app.
-          </<q-card-section>
-        </q-card>
+          </div>
+          <div class="q-mt-md">
+            Complete the payment, then return to the app.
+          </div>
+        </div>
       `,
             html: true,
             persistent: true,
@@ -727,8 +821,24 @@ const payWithPaypal = async () => {
         })
 
         if (Capacitor.isNativePlatform()) {
-            await Browser.open({ url: approvalUrl })
+            const orderId = res.data?.order_id
+            if (!orderId) throw new Error('No order_id returned from server')
+
+            if (!paypalWebInitialized) {
+                const configRes = await ApiService.get('/v1/paypal/config')
+                await PayPalWeb.initialize({
+                    clientId: configRes.data.client_id,
+                    environment: configRes.data.environment,
+                    urlScheme: 'com.streama.app'
+                })
+                paypalWebInitialized = true
+            }
+
+            await PayPalWeb.start({ orderId })
+
         } else {
+            const approvalUrl = res.data?.approval_url
+            if (!approvalUrl) throw new Error('No approval_url returned from server')
             window.location.href = approvalUrl
         }
 
@@ -738,7 +848,7 @@ const payWithPaypal = async () => {
 
         $q.notify({
             type: 'negative',
-            message: error?.response?.data?.message || statusMessage.value,
+            message: error?.message || error?.response?.data?.message || statusMessage.value,
             position: 'top'
         })
 
@@ -749,6 +859,27 @@ const payWithPaypal = async () => {
     }
 }
 
+const handlePaypalWebResult = async (data) => {
+    hidePaypalWaitDialog()
+
+    if (data.cancelled) {
+        statusMessage.value = 'Payment cancelled'
+        $q.notify({ type: 'warning', message: statusMessage.value, position: 'top' })
+        emit('cancelled', { method: 'paypal' })
+        return
+    }
+
+    if (data.error) {
+        statusMessage.value = 'PayPal payment failed'
+        $q.notify({ type: 'negative', message: data.error || statusMessage.value, position: 'top' })
+        emit('error', { method: 'paypal', error: data.error })
+        return
+    }
+
+    if (data.orderId) {
+        await capturePaypalOrder(data.orderId, data.payerId)
+    }
+}
 const capturePaypalOrder = async (token, payerId = null) => {
     loading.value = true
 
@@ -831,11 +962,106 @@ const handlePaypalAppUrlOpen = async (event) => {
     await capturePaypalOrder(token, payerId)
 }
 
+// =====================================================================
+// PAYPAL CARD (native, custom PayPalCardPlugin - Android only for now)
+// =====================================================================
+const payWithPaypalCard = async () => {
+    if (!Capacitor.isNativePlatform()) {
+        $q.notify({ type: 'warning', message: 'Card payments via PayPal are only available in the app', position: 'top' })
+        return
+    }
+
+    const [expMonth, expYear] = ppCardExpiry.value.split('/').map((s) => s.trim())
+
+    if (!ppCardNumber.value || !expMonth || !expYear || !ppCardCvv.value) {
+        $q.notify({ type: 'warning', message: 'Fill in all card fields', position: 'top' })
+        return
+    }
+
+    loading.value = true
+    statusMessage.value = ''
+
+    try {
+        // Reuses the same order-creation endpoint as the wallet flow - it
+        // already returns { order_id }, which is all the card SDK needs.
+        const orderRes = await ApiService.post(props.paypalCreateOrderEndpoint, {
+            amount: props.amount,
+            item_id: props.itemId,
+            item_type: props.itemType,
+            description: props.description,
+            service_type: props.serviceType,
+            title: props.description,
+            client: 'mobile'
+        })
+
+        const orderId = orderRes.data?.order_id
+        if (!orderId) throw new Error('No order_id returned from server')
+
+        if (!paypalCardInitialized) {
+            const configRes = await ApiService.get('/v1/paypal/config')
+            await PayPalCard.initialize({
+                clientId: configRes.data.client_id,
+                environment: configRes.data.environment
+            })
+            paypalCardInitialized = true
+        }
+
+        const fullYear = expYear.length === 2 ? `20${expYear}` : expYear
+
+        const result = await PayPalCard.payWithCard({
+            orderId,
+            returnUrl: 'com.streama.app://card-3ds-callback',
+            card: {
+                number: ppCardNumber.value.replace(/\s+/g, ''),
+                expirationMonth: expMonth.padStart(2, '0'),
+                expirationYear: fullYear,
+                securityCode: ppCardCvv.value,
+                billingAddress: {
+                    countryCode: ppCardCountry.value
+                }
+            }
+        })
+
+        if (result?.cancelled) {
+            statusMessage.value = 'Payment cancelled'
+            $q.notify({ type: 'warning', message: statusMessage.value, position: 'top' })
+            emit('cancelled', { method: 'paypal_card' })
+            return
+        }
+
+        // Card was approved by PayPal - capture through the SAME server
+        // endpoint the wallet flow uses (it only needs order_id).
+        await capturePaypalOrder(orderId)
+
+        ppCardNumber.value = ''
+        ppCardExpiry.value = ''
+        ppCardCvv.value = ''
+
+    } catch (error) {
+        console.log(error)
+        statusMessage.value = 'Card payment failed'
+
+        $q.notify({
+            type: 'negative',
+            message: error?.message || error?.response?.data?.message || statusMessage.value,
+            position: 'top'
+        })
+
+        emit('error', { method: 'paypal_card', error })
+
+    } finally {
+        loading.value = false
+    }
+}
+
 onMounted(async () => {
     await loadPaymentGateways()
     paypalUrlListener = await App.addListener('appUrlOpen', handlePaypalAppUrlOpen)
     const launchUrl = await App.getLaunchUrl()
     if (launchUrl?.url) await handlePaypalAppUrlOpen(launchUrl)
+    if (Capacitor.isNativePlatform()) {
+        paypalWebResultListener = await PayPalWeb.addListener('paypalWebResult', handlePaypalWebResult)
+    }
 })
 
 onBeforeUnmount(() => {
@@ -843,71 +1069,72 @@ onBeforeUnmount(() => {
     showOtpModal.value = false
     hidePaypalWaitDialog()
     paypalUrlListener?.remove()
+    paypalWebResultListener?.remove()
 })
 </script>
 
 <template>
-    <div class="payment-pages">
-        <div class="payment-wrappers">
-            <q-card flat borderd class="payment-cards">
-                <div class="card-title fredoka text-center">
+    <div class="payment-pages q-pa-sm q-pa-md-md flex flex-center">
+        <div class="payment-wrappers full-width" style="max-width: 480px;">
+            <q-card flat bordered class="q-pa-md q-pa-sm-sm rounded-borders">
+
+                <div class="card-title fredoka text-center text-h6 text-weight-bold">
                     Make Payment
                 </div>
 
-                <div class="card-subtitle text-center">
+                <div class="card-subtitle text-center text-caption q-mb-md">
                     {{ currentSubtitle }}
                 </div>
 
                 <!-- METHOD TABS -->
-                <q-tabs v-model="selectedMethod" class="method-tabs q-mb-lg"
-                    :align="$q.screen.lt.md ? 'left' : 'center'" active-color="primary" indicator-color="primary"
-                    outside-arrows mobile-arrows :dense="$q.screen.lt.md">
+                <q-tabs v-model="selectedMethod" class="method-tabs q-mb-lg" align="justify" active-color="primary"
+                    indicator-color="primary" outside-arrows mobile-arrows dense narrow-indicator>
                     <q-tab v-for="option in methodOptions" :key="option.value" :name="option.value" :icon="option.icon"
-                        :label="option.label" no-caps />
+                        :label="option.label" no-caps class="q-px-sm" />
                 </q-tabs>
 
                 <!-- AMOUNT SUMMARY (shared, not editable) -->
-                <div class="feature-card amount-summary q-mb-md">
-                    <q-icon name="payments" size="26px" />
-                    <div>
-                        <div class="feature-title">
+                <q-card flat bordered class="feature-card amount-summary q-mb-md q-pa-sm row items-center no-wrap">
+                    <q-icon name="payments" size="26px" class="q-mr-sm" />
+                    <div class="col">
+                        <div class="feature-title text-subtitle1 text-weight-medium">
                             Amount: M{{ amount }}
                         </div>
-                        <div class="feature-text">
+                        <div class="feature-text text-caption ellipsis-2-lines">
                             {{ description }}
                         </div>
                     </div>
-                </div>
+                </q-card>
 
                 <!-- CARD -->
-                <q-form v-if="selectedMethod === 'card'" class="form-section" @submit.prevent="payWithCard">
+                <q-form v-if="selectedMethod === 'card'" class="form-section q-gutter-md" @submit.prevent="payWithCard">
 
-                    <q-input v-model="msisdn" label="Cellphone" dark dense bg-color="transparent">
+                    <q-input v-model="msisdn" label="Cellphone" outlined dense>
                         <template #prepend>
                             <q-icon name="phone_android" />
                         </template>
                     </q-input>
 
-                    <q-input v-model="cardEmail" label="Email" type="email" dark dense>
+                    <q-input v-model="cardEmail" label="Email" type="email" outlined dense>
                         <template #prepend>
                             <q-icon name="email" />
                         </template>
                     </q-input>
 
-                    <div v-if="statusMessage" class="status-box">
+                    <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2">
                         {{ statusMessage }}
-                    </div>
+                    </q-banner>
 
                     <div class="btn-wrap">
                         <q-btn type="submit" :label="buttonLabel" unelevated no-caps :loading="loading"
-                            class="pay-btn" />
+                            class="pay-btn full-width" size="lg" />
                     </div>
 
                 </q-form>
 
                 <!-- MOBILE MONEY (OTP) -->
-                <div v-else-if="selectedMethod === 'mobile'" class="form-section">
-                    <q-input v-model="msisdn" label="Phone Number" dense dark lazy-rules :rules="[
+                <div v-else-if="selectedMethod === 'mobile'" class="form-section q-gutter-md">
+                    <q-input v-model="msisdn" label="Phone Number" outlined dense lazy-rules :rules="[
                         val => !!val || 'Phone required'
                     ]">
                         <template #prepend>
@@ -915,31 +1142,33 @@ onBeforeUnmount(() => {
                         </template>
                     </q-input>
 
-                    <div v-if="statusMessage" class="status-box">
+                    <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2">
                         {{ statusMessage }}
-                    </div>
+                    </q-banner>
 
                     <div class="btn-wrap">
-                        <q-btn label="Continue" class="pay-btn" :loading="loading" unelevated no-caps
-                            @click="payWithMobile" />
+                        <q-btn label="Continue" class="pay-btn full-width" size="lg" :loading="loading" unelevated
+                            no-caps @click="payWithMobile" />
                     </div>
 
                 </div>
 
                 <!-- M-PESA -->
-                <q-form v-else-if="selectedMethod === 'mpesa'" class="form-section" @submit.prevent="payWithMpesa">
+                <q-form v-else-if="selectedMethod === 'mpesa'" class="form-section q-gutter-md"
+                    @submit.prevent="payWithMpesa">
 
-                    <q-input v-model="msisdn" label="M-Pesa Number" dense dark maxlength="8" hint="Example: 58123456">
+                    <q-input v-model="msisdn" label="M-Pesa Number" outlined dense maxlength="8"
+                        hint="Example: 58123456">
                         <template #prepend>
                             <q-icon name="phone_android" />
                         </template>
                     </q-input>
 
-                    <div v-if="statusMessage" class="status-box">
+                    <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2">
                         {{ statusMessage }}
-                    </div>
+                    </q-banner>
 
-                    <div v-if="mpesaPollUi.conversationId" class="mpesa-poll-meta q-mb-sm">
+                    <div v-if="mpesaPollUi.conversationId" class="mpesa-poll-meta q-gutter-xs">
                         <q-chip dense color="primary" text-color="white" icon="hourglass_top" size="sm">
                             {{ mpesaPollUi.status || 'pending' }}
                         </q-chip>
@@ -961,7 +1190,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="btn-wrap">
-                        <q-btn type="submit" unelevated no-caps :loading="loading" class="pay-btn">
+                        <q-btn type="submit" unelevated no-caps :loading="loading" class="pay-btn full-width" size="lg">
                             <q-icon name="payments" class="q-mr-sm" />
                             {{ buttonLabel }}
                         </q-btn>
@@ -970,14 +1199,15 @@ onBeforeUnmount(() => {
                 </q-form>
 
                 <!-- PAYPAL -->
-                <div v-else-if="selectedMethod === 'paypal'" class="form-section">
+                <div v-else-if="selectedMethod === 'paypal'" class="form-section q-gutter-md">
 
-                    <div v-if="statusMessage" class="status-box">
+                    <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2">
                         {{ statusMessage }}
-                    </div>
+                    </q-banner>
 
                     <div class="btn-wrap">
-                        <q-btn unelevated no-caps :loading="loading" class="pay-btn" @click="payWithPaypal">
+                        <q-btn unelevated no-caps :loading="loading" class="pay-btn full-width" size="lg"
+                            @click="payWithPaypal">
                             <q-icon name="account_balance_wallet" class="q-mr-sm" />
                             Pay with PayPal
                         </q-btn>
@@ -985,13 +1215,49 @@ onBeforeUnmount(() => {
 
                 </div>
 
+                <!-- PAYPAL CARD (native) -->
+                <q-form v-else-if="selectedMethod === 'paypal_card'" class="form-section q-gutter-md"
+                    @submit.prevent="payWithPaypalCard">
+
+                    <q-input v-model="ppCardNumber" label="Card Number" outlined dense mask="#### #### #### ####"
+                        placeholder="4111 1111 1111 1111">
+                        <template #prepend>
+                            <q-icon name="credit_card" />
+                        </template>
+                    </q-input>
+
+                    <div class="row q-col-gutter-sm">
+                        <div class="col-6">
+                            <q-input v-model="ppCardExpiry" label="MM/YY" outlined dense mask="##/##"
+                                placeholder="01/28" />
+                        </div>
+                        <div class="col-6">
+                            <q-input v-model="ppCardCvv" label="CVV" outlined dense mask="####" placeholder="123" />
+                        </div>
+                    </div>
+
+                    <q-input v-model="ppCardCountry" label="Billing Country (2-letter code)" outlined dense
+                        maxlength="2" placeholder="LS" />
+
+                    <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2">
+                        {{ statusMessage }}
+                    </q-banner>
+
+                    <div class="btn-wrap">
+                        <q-btn type="submit" :label="buttonLabel" unelevated no-caps :loading="loading"
+                            class="pay-btn full-width" size="lg" />
+                    </div>
+
+                </q-form>
+
             </q-card>
 
         </div>
 
         <!-- CARD MODAL -->
-        <q-dialog v-model="showCardModal" maximized>
-            <q-card class="column full-height">
+        <q-dialog v-model="showCardModal" :maximized="$q.screen.lt.sm" :full-width="!$q.screen.lt.sm"
+            :full-height="!$q.screen.lt.sm">
+            <q-card class="column full-height" style="max-width: 480px; width: 100%;">
 
                 <q-bar>
                     <div class="text-weight-bold">Complete Payment</div>
@@ -1000,7 +1266,8 @@ onBeforeUnmount(() => {
                 </q-bar>
 
                 <q-card-section class="col q-pa-none flex">
-                    <iframe v-if="cardIframeSrc" :src="cardIframeSrc" class="payment-iframe" />
+                    <iframe v-if="cardIframeSrc" :src="cardIframeSrc" class="payment-iframe full-width full-height"
+                        style="border: none;" />
                 </q-card-section>
 
             </q-card>
@@ -1008,7 +1275,7 @@ onBeforeUnmount(() => {
 
         <!-- OTP CONFIRM MODAL -->
         <q-dialog v-model="showOtpModal" persistent>
-            <q-card class="q-pa-md" style="min-width: 320px; max-width: 420px; width: 100%;">
+            <q-card class="q-pa-md full-width" style="max-width: 420px;">
                 <div class="text-h6 text-weight-bold q-mb-xs">Confirm OTP</div>
                 <div class="text-caption q-mb-md">
                     Enter the OTP sent to {{ msisdn }}
@@ -1020,9 +1287,9 @@ onBeforeUnmount(() => {
                     </template>
                 </q-input>
 
-                <div v-if="statusMessage" class="status-box q-mt-md">
+                <q-banner v-if="statusMessage" dense rounded class="status-box bg-grey-2 text-body2 q-mt-md">
                     {{ statusMessage }}
-                </div>
+                </q-banner>
 
                 <div class="row justify-end q-gutter-sm q-mt-lg">
                     <q-btn flat no-caps label="Cancel" @click="closeOtpModal" :disable="loading" />
@@ -1034,105 +1301,3 @@ onBeforeUnmount(() => {
 
     </div>
 </template>
-
-<style scoped>
-.card-subtitle {
-    margin: 0 auto 16px;
-    max-width: 420px;
-}
-
-.method-tabs {
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: 12px;
-    padding: 6px;
-}
-
-.amount-summary {
-    justify-content: center;
-    text-align: center;
-}
-
-.form-section {
-    max-width: 460px;
-    margin: 0 auto;
-}
-
-.form-section :deep(.q-field) {
-    margin-bottom: 10px;
-}
-
-.btn-wrap {
-    display: flex;
-    justify-content: center;
-}
-
-.btn-wrap .pay-btn {
-    width: 100%;
-    max-width: 360px;
-}
-
-.mpesa-poll-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-}
-
-.ellipsis-chip {
-    max-width: 100%;
-}
-
-.ellipsis-chip :deep(.q-chip__content) {
-    max-width: 240px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.method-tabs :deep(.q-tab) {
-    min-height: 44px;
-}
-
-.method-tabs :deep(.q-tab__label) {
-    font-size: 13px;
-}
-
-@media (min-width: 1024px) {
-    /* .payment-wrapper {
-        max-width: 860px;
-    } */
-
-    .method-tabs :deep(.q-tab) {
-        min-width: 0;
-        flex: 1 1 0;
-    }
-
-    .payment-card {
-        padding: 28px;
-    }
-}
-
-@media (max-width: 600px) {
-    /* .payment-wrapper {
-        padding: 8px;
-    }
-
-    .payment-card {
-        border-radius: 4px;
-        padding: 12px;
-    } */
-
-    .method-tabs {
-        overflow-x: auto;
-        padding: 4px;
-    }
-
-    .method-tabs :deep(.q-tab) {
-        min-width: 110px;
-    }
-
-    .card-title {
-        font-size: 1.25rem;
-    }
-}
-</style>

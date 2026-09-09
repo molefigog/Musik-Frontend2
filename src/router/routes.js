@@ -22,7 +22,7 @@ const routes = [
                 component: () => import('pages/TasksPage.vue'),
             },
             {
-                path: '/music/:id',
+                path: '/music/:slug',
                 name: 'Track',
                 meta: { title: 'Track' },
                 component: () => import('pages/SongDetails.vue'),

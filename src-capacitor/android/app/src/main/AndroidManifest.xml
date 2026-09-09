@@ -24,6 +24,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.streama.app" android:host="paypal-callback" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.streama.app" android:host="card-3ds-callback" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.streama.app" android:host="x-callback-url"
+                    android:pathPrefix="/paypal-sdk/paypal-checkout" />
+            </intent-filter>
         </activity>
 
         <provider

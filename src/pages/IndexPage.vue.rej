@@ -1,0 +1,9 @@
+diff a/src/pages/IndexPage.vue b/src/pages/IndexPage.vue	(rejected hunks)
+@@ -166,6 +166,7 @@ import { useMusicFilters } from 'src/composables/useMusicFilters'
+ import { useCartStore } from 'src/stores/cart'
+ import { useNotificationsStore } from 'src/stores/notifications'
+ import { useMusicStore } from 'src/stores/music'
++import { buildTrackSlug } from 'src/utils/track-slug'
+ 
+ const $q = useQuasar()
+ const router = useRouter()

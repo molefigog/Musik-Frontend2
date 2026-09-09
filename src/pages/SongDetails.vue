@@ -150,6 +150,7 @@ import { useNotificationsStore } from 'src/stores/notifications'
 import { useAudioPlayer } from 'src/composables/useAudioPlayer'
 import { useTrackDownload } from 'src/composables/useTrackDownload'
 import { Capacitor } from '@capacitor/core'
+import { buildTrackSlug, parseTrackSlug } from 'src/utils/track-slug'
 
 const $q = useQuasar()
 const api = ApiService
@@ -220,7 +221,9 @@ async function fetchTrack() {
     loading.value = true
     loadError.value = false
     try {
-        const { data } = await api.get(`/music/${route.params.id}`)
+        const trackId = parseTrackSlug(route.params.slug)
+        if (!trackId) throw new Error('Invalid track link')
+        const { data } = await api.get(`/music/${trackId}`)
         track.value = data.data
     } catch (err) {
         console.error(err)
@@ -247,7 +250,7 @@ function formatDuration(seconds) {
 
 function getTrackShareUrl() {
     const appUrl = String(import.meta.env.VITE_PUBLIC_APP_URL || 'https://gw-ent.co.za').replace(/\/$/, '')
-    return `${appUrl}/music/${encodeURIComponent(track.value.id)}`
+    return `${appUrl}/music/${buildTrackSlug(track.value)}`
 }
 
 function getShareData() {
@@ -394,7 +397,7 @@ function addTrackToCart(track) {
 }
 
 watch(
-    () => route.params.id,
+    () => route.params.slug,
     () => {
         stopAudio()
         fetchTrack()

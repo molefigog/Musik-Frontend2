@@ -149,7 +149,7 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useQuasar, useMeta } from 'quasar'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Capacitor } from '@capacitor/core'
@@ -166,6 +166,10 @@ import { useMusicFilters } from 'src/composables/useMusicFilters'
 import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
 import { useMusicStore } from 'src/stores/music'
+import { buildTrackSlug } from 'src/utils/track-slug'
+import appIcon from 'src/assets/icon.jpg'
+
+const PAGE_TITLE = 'GW ENT Store'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -178,6 +182,20 @@ const cart = useCartStore()
 const notifications = useNotificationsStore()
 const mobileActionsOpen = ref(false)
 const selectedTrack = ref(null)
+
+useMeta(() => ({
+    title: PAGE_TITLE,
+    meta: {
+        description: { name: 'description', content: 'Shop and stream beats on GW ENT Store.' },
+        ogTitle: { property: 'og:title', content: PAGE_TITLE },
+        ogDescription: { property: 'og:description', content: 'Shop and stream beats on GW ENT Store.' },
+        ogImage: { property: 'og:image', content: appIcon },
+        ogType: { property: 'og:type', content: 'website' },
+        twitterCard: { name: 'twitter:card', content: 'summary_large_image' },
+        twitterTitle: { name: 'twitter:title', content: PAGE_TITLE },
+        twitterImage: { name: 'twitter:image', content: appIcon },
+    },
+}))
 const downloadStateByTrack = ref({})
 
 const ANDROID_DOWNLOAD_DIR = 'Download/Gw Music'
@@ -218,12 +236,12 @@ const isDownloadIndeterminate = (trackId) => {
     return Boolean(state?.status === 'downloading' && state?.totalBytes === 0)
 }
 const goToTrackDetails = (track = selectedTrack.value) => {
-    const trackId = track?.id || selectedTrack.value?.id
-    if (!trackId) return
+    const targetTrack = track?.id ? track : selectedTrack.value
+    if (!targetTrack?.id) return
 
     mobileActionsOpen.value = false
     selectedTrack.value = null
-    router.push({ name: 'Track', params: { id: trackId } })
+    router.push({ name: 'Track', params: { slug: buildTrackSlug(targetTrack) } })
 }
 const downloadProgressValue = (trackId) => {
     const percent = Number(getDownloadState(trackId)?.progress || 0)
