@@ -37,6 +37,13 @@
                 <data android:scheme="com.streama.app" android:host="x-callback-url"
                     android:pathPrefix="/paypal-sdk/paypal-checkout" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- A clean entry without 'android:host' allows Braintree's validation check to pass -->
+                <data android:scheme="com.streama.app" />
+            </intent-filter>
         </activity>
 
         <provider

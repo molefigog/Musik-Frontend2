@@ -75,6 +75,12 @@ const props = defineProps({
         default: 'input_PurchasedItemsDesc'
     },
 
+    // --- Ecocs --- 
+    ecocashEndpoint: {
+        type: String,
+        required: true
+    },
+
     // ---- PayPal ----
     paypalCreateOrderEndpoint: {
         type: String,
@@ -110,6 +116,7 @@ const methodOptions = ref([
     { label: 'Cpay Card', value: 'card', icon: 'credit_card' },
     { label: 'Cpay Mobile', value: 'mobile', icon: 'smartphone' },
     { label: 'M-Pesa', value: 'mpesa', icon: 'payments' },
+    { label: 'EcoCash', value: 'ecocash', icon: 'phone_iphone' },
     { label: 'PayPal', value: 'paypal', icon: 'account_balance_wallet' },
     // Native-only: real PayPal card form via the custom PayPalCardPlugin.
     // On web this stays hidden - use the 'paypal' wallet tab there instead.
@@ -179,6 +186,7 @@ const currentSubtitle = computed(() => {
     if (selectedMethod.value === 'card') return 'Fill in your card details below'
     if (selectedMethod.value === 'mobile') return 'Secure mobile transaction'
     if (selectedMethod.value === 'mpesa') return 'Secure mobile payment experience'
+    if (selectedMethod.value === 'ecocash') return 'Pay with your EcoCash mobile wallet'
     if (selectedMethod.value === 'paypal') return "You'll be redirected to PayPal to approve this payment"
     if (selectedMethod.value === 'paypal_card') return 'Pay by card, powered by PayPal - no browser needed'
     return ''
@@ -672,6 +680,47 @@ const payWithMpesa = async () => {
 
         emit('error', { method: 'mpesa', error })
 
+    } finally {
+        loading.value = false
+    }
+}
+
+const payWithEcocash = async () => {
+    if (!msisdn.value) {
+        $q.notify({ type: 'warning', message: 'Phone number is required', position: 'top' })
+        return
+    }
+
+    loading.value = true
+    statusMessage.value = ''
+
+    try {
+        const res = await ApiService.post(props.ecocashEndpoint, {
+            mobileNumber: msisdn.value,
+            amount: props.amount,
+            item_id: props.itemId,
+            item_type: props.itemType,
+            description: props.description,
+            service_type: props.serviceType,
+            title: props.description
+        })
+
+        const data = res.data
+
+        if (data.success) {
+            statusMessage.value = 'Payment successful!'
+            $q.notify({ type: 'positive', message: 'Payment successful!', position: 'top' })
+            emit('success', { method: 'ecocash', data })
+        } else {
+            statusMessage.value = data.error || data.message || 'Payment failed'
+            $q.notify({ type: 'negative', message: statusMessage.value, position: 'top' })
+            emit('error', { method: 'ecocash', data })
+        }
+    } catch (error) {
+        console.log(error)
+        statusMessage.value = error?.response?.data?.error || 'Error processing EcoCash payment'
+        $q.notify({ type: 'negative', message: statusMessage.value, position: 'top' })
+        emit('error', { method: 'ecocash', error })
     } finally {
         loading.value = false
     }
@@ -1197,7 +1246,24 @@ onBeforeUnmount(() => {
                     </div>
 
                 </q-form>
+                <q-form v-else-if="selectedMethod === 'ecocash'" class="form-section" @submit.prevent="payWithEcocash">
+                    <q-input v-model="msisdn" label="EcoCash Number" dense dark hint="Example: 58123456">
+                        <template #prepend>
+                            <q-icon name="phone_android" />
+                        </template>
+                    </q-input>
 
+                    <div v-if="statusMessage" class="status-box">
+                        {{ statusMessage }}
+                    </div>
+
+                    <div class="btn-wrap">
+                        <q-btn type="submit" unelevated no-caps :loading="loading" class="pay-btn">
+                            <q-icon name="payments" class="q-mr-sm" />
+                            {{ buttonLabel }}
+                        </q-btn>
+                    </div>
+                </q-form>
                 <!-- PAYPAL -->
                 <div v-else-if="selectedMethod === 'paypal'" class="form-section q-gutter-md">
 
