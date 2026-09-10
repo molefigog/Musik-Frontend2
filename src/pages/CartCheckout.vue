@@ -22,6 +22,9 @@ const serviceType = computed(() => cart.items[0]?.service_type || '')
 const mpesaEndpoint = computed(() =>
     cart.itemType === 'music' ? 'v1/payments/mpesa/music' : 'v1/payments/mpesa/services'
 )
+const ecocashEndpoint = computed(() =>
+    cart.itemType === 'music' ? 'v1/payments/ecocash/music' : 'v1/payments/ecocash/services'
+)
 const paypalCreateOrderEndpoint = computed(() =>
     cart.itemType === 'music' ? 'v1/paypal/music/create-order' : 'v1/paypal/services/create-order'
 )
@@ -150,7 +153,7 @@ onMounted(() => {
 
             <PaymentGateways :amount="cart.total" :description="description" :service-type="serviceType"
                 :item-id="cart.itemIds" :item-type="cart.itemType" :mpesa-endpoint="mpesaEndpoint"
-                :paypal-create-order-endpoint="paypalCreateOrderEndpoint"
+                :ecocash-endpoint="ecocashEndpoint" :paypal-create-order-endpoint="paypalCreateOrderEndpoint"
                 :paypal-capture-order-endpoint="paypalCaptureOrderEndpoint" @success="onPaid" @error="onPaymentError" />
 
         </template>

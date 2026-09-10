@@ -360,11 +360,18 @@ const saveBlobToDevice = async (blob, filename) => {
     if (isNativeAndroid()) {
         await Filesystem.requestPermissions()
 
-        await Filesystem.mkdir({
-            directory: Directory.ExternalStorage,
-            path: ANDROID_DOWNLOAD_DIR,
-            recursive: true
-        })
+        try {
+            await Filesystem.mkdir({
+                directory: Directory.ExternalStorage,
+                path: ANDROID_DOWNLOAD_DIR,
+                recursive: true
+            })
+        } catch (error) {
+            if (!isFileAlreadyExistsError(error)) {
+                throw error
+            }
+            // Directory already exists from a previous download — safe to continue.
+        }
 
         const base64 = await blobToBase64(blob)
 

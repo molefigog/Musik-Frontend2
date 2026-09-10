@@ -38,7 +38,7 @@ const props = defineProps({
     },
     defaultMethod: {
         type: String,
-        default: 'card' // 'card' | 'mobile' | 'mpesa' | 'paypal'
+        default: 'card' // 'card' | 'mobile' | 'mpesa' | 'ecocash' | 'paypal'
     },
     buttonLabel: {
         type: String,
@@ -79,6 +79,7 @@ const props = defineProps({
     ecocashEndpoint: {
         type: String,
         required: true
+        // default: 'v1/payments/ecocash/music'
     },
 
     // ---- PayPal ----
@@ -1247,7 +1248,8 @@ onBeforeUnmount(() => {
 
                 </q-form>
                 <q-form v-else-if="selectedMethod === 'ecocash'" class="form-section" @submit.prevent="payWithEcocash">
-                    <q-input v-model="msisdn" label="EcoCash Number" dense dark hint="Example: 58123456">
+                    <q-input v-model="msisdn" label="EcoCash Number" outlined dense maxlength="8"
+                        hint="Example: 62453456">
                         <template #prepend>
                             <q-icon name="phone_android" />
                         </template>
@@ -1258,7 +1260,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="btn-wrap">
-                        <q-btn type="submit" unelevated no-caps :loading="loading" class="pay-btn">
+                        <q-btn type="submit" unelevated no-caps :loading="loading" class="pay-btn full-width" size="lg">
                             <q-icon name="payments" class="q-mr-sm" />
                             {{ buttonLabel }}
                         </q-btn>
