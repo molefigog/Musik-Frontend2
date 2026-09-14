@@ -11,6 +11,45 @@
     --q-dark-page: #0c0c0e;
 }
 
+// ============================================
+// Theme palettes
+// ============================================
+
+// Light mode — pure white bg, black text, green accents
+.body--light {
+    --q-primary: #19b159;
+    --q-secondary: #0e8f45;
+    --q-accent: #19b159;
+
+    --app-bg-page: #ffffff;
+    --app-surface: #f5f5f7;
+    --app-surface-elevated: #ffffff;
+    --app-text-primary: #000000;
+    --app-text-secondary: #4a4a4a;
+    --app-border: rgba(0, 0, 0, 0.1);
+
+    background: var(--app-bg-page);
+    color: var(--app-text-primary);
+}
+
+// Dark mode — Apple Music inspired: true black + red accent
+.body--dark {
+    --q-primary: #fa233b;
+    --q-secondary: #fc3c44;
+    --q-accent: #fa57c1;
+    --q-dark: #1c1c1e;
+    --q-dark-page: #000000;
+
+    --app-bg-page: #000000;
+    --app-surface: #1c1c1e;
+    --app-surface-elevated: #2c2c2e;
+    --app-text-primary: #ffffff;
+    --app-text-secondary: #a1a1a6;
+    --app-border: rgba(255, 255, 255, 0.12);
+
+    background: var(--app-bg-page);
+    color: var(--app-text-primary);
+}
 .glass-header-main {
     background: #121212;
     backdrop-filter: blur(20px);

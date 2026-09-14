@@ -8,7 +8,7 @@
             No tasks yet.
         </div>
 
-        <div class="column q-gutter-sm">
+        <div class="task-grid">
             <task-card v-for="task in tasksStore.tasks" :key="task.id" :task="task" @details="openDetails" />
         </div>
 
@@ -148,3 +148,17 @@ onBeforeUnmount(() => {
     }
 })
 </script>
+<style scoped>
+.task-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 12px;
+}
+
+@media (min-width: 1024px) {
+    .task-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+</style>

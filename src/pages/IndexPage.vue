@@ -1,118 +1,144 @@
 <template>
     <q-page class="store-page text-white overflow-hidden">
         <MusicFilters v-model:filters="filters" :genres="genres" :releases="releases" />
-
-        <!-- STORE HEADER -->
-        <!-- <div class="store-header">
-            <div class="brand-block">
-                <div class="brand-icon">
-                    <q-icon name="headphones" size="18px" color="white" />
-                </div>
-                <div>
-                    <div class="brand-name">GW ENT Store</div>
-                    <div class="brand-sub">Beats Marketplace</div>
-                </div>
-            </div>
-            <div class="header-actions">
-               <q-btn flat dense no-caps class="header-btn" icon="favorite_border" label="Saved" /> 
-                <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart" /> 
-
-                 <q-btn flat dense no-caps class="header-btn cart-btn" icon="shopping_cart" label="Cart"
-                    :to="{ name: 'cart-checkout' }" :size="$q.screen.gt.sm ? 'md' : 'sm'">
-                    <q-badge v-if="cart.count > 0" color="red" floating>{{ cart.count }}</q-badge>
-                </q-btn> 
-            </div>
-        </div> -->
-
-
-        <!-- TRACK LIST HEADER -->
-        <div class="track-list-header">
-            <span class="col-num">#</span>
-            <span></span>
-            <span class="col-title">Track</span>
-            <span></span>
-            <span></span>
+        <!-- VIEW TOGGLE -->
+        <div class="view-toggle-bar">
+            <q-btn-toggle :model-value="viewMode" @update:model-value="setViewMode" dense no-caps unelevated
+                toggle-color="primary" color="transparent" text-color="inherit" class="view-toggle" :options="[
+                    { icon: 'view_list', value: 'list' },
+                    { icon: 'grid_view', value: 'grid' },
+                ]" />
         </div>
 
-        <!-- TRACKS -->
-        <div v-if="filteredMusic.length" class="track-list relative z-10">
-            <div v-for="(track, index) in filteredMusic" :key="track.id" class="track-row"
-                :class="{ 'track-playing': currentId === track.id }">
-                <!-- INDEX / PLAYING INDICATOR -->
-                <span class="col-num">
-                    <q-icon v-if="currentId === track.id && isPlaying" name="graphic_eq" size="14px" color="purple-4" />
-                    <span v-else class="track-num-text">{{ index + 1 }}</span>
-                </span>
+        <template v-if="viewMode === 'list'">
+            <!-- TRACK LIST HEADER -->
+            <div class="track-list-header">
+                <span class="col-num">#</span>
+                <span></span>
+                <span class="col-title">Track</span>
+                <span></span>
+                <span></span>
+            </div>
 
-                <!-- COVER ART with PLAY ICON OVERLAY -->
-                <div class="cover-play" @click="selectTrack(track)">
-                    <img v-if="getCoverArt(track)" :src="getCoverArt(track)" class="cover-img" />
-                    <div v-else class="cover-fallback">
-                        <q-icon name="music_note" size="18px" color="grey-6" />
+            <!-- TRACKS -->
+            <div v-if="filteredMusic.length" class="track-list relative z-10">
+                <div v-for="(track, index) in filteredMusic" :key="track.id" class="track-row"
+                    :class="{ 'track-playing': currentId === track.id }">
+                    <!-- INDEX / PLAYING INDICATOR -->
+                    <span class="col-num">
+                        <q-icon v-if="currentId === track.id && isPlaying" name="graphic_eq" size="14px"
+                            color="purple-4" />
+                        <span v-else class="track-num-text">{{ index + 1 }}</span>
+                    </span>
+
+                    <!-- COVER ART with PLAY ICON OVERLAY -->
+                    <div class="cover-play" @click="selectTrack(track)">
+                        <img v-if="getCoverArt(track)" :src="getCoverArt(track)" class="cover-img" />
+                        <div v-else class="cover-fallback">
+                            <q-icon name="music_note" size="18px" color="grey-6" />
+                        </div>
+                        <div class="cover-play-overlay">
+                            <q-icon :name="currentId === track.id && isPlaying ? 'pause' : 'play_arrow'" size="20px"
+                                color="white" />
+                        </div>
                     </div>
-                    <div class="cover-play-overlay">
-                        <q-icon :name="currentId === track.id && isPlaying ? 'pause' : 'play_arrow'" size="20px"
-                            color="white" />
+
+                    <!-- WAVEFORM HERO: title / release / genre / price overlaid on top of waveform -->
+                    <div class="waveform-hero" @click="(e) => seekTrack(track, e)">
+                        <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-base" />
+                        <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-played" :style="{
+                            clipPath: `inset(0 ${100 - (currentId === track.id ? progress * 100 : 0)}% 0 0)`
+                        }" />
+                        <div class="waveform-scrim" />
+                        <div v-if="currentId === track.id" class="playhead-line"
+                            :style="{ left: (progress * 100) + '%' }" />
+
+                        <div class="hero-content">
+                            <div class="hero-top">
+                                <div class="hero-title ellipsis">{{ track.title }}</div>
+                                <div class="text-caption ellipsis">{{ track.release?.title || 'No Release' }}</div>
+                            </div>
+                            <div class="hero-bottom">
+                                <span class="genre-tag">{{ track.genre?.title || '—' }}</span>
+                                <span class="price-tag">
+                                    {{ isFreeTrack(track) ? 'Free' : `R${Number(track.price || 0).toFixed(2)}` }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DESKTOP ACTIONS -->
+                    <div class="col-action desktop-actions">
+                        <q-btn round flat dense icon="info" class="action-btn" @click="goToTrackDetails(track)" />
+                    </div>
+
+                    <div class="col-action desktop-actions">
+                        <q-btn v-if="isFreeTrack(track)" round flat dense icon="download" class="action-btn"
+                            :disable="isDownloading(track.id)" @click="downloadTrack(track)" />
+                        <q-btn v-else round flat dense icon="add_shopping_cart" class="action-btn cart-action"
+                            @click="addTrackToCart(track)" />
+                    </div>
+
+                    <!-- MOBILE ACTIONS -->
+                    <div class="mobile-actions lt-md">
+                        <q-btn round flat dense icon="more_horiz" class="action-btn" @click="openTrackActions(track)" />
+
+                        <q-btn v-if="isFreeTrack(track)" round flat dense
+                            :icon="isDownloading(track.id) ? 'downloading' : 'download'" class="action-btn"
+                            :disable="isDownloading(track.id)" @click="downloadTrack(track)" />
+
+                        <q-btn v-else round flat dense icon="add_shopping_cart" class="action-btn cart-action"
+                            @click="addTrackToCart(track)" />
+                    </div>
+
+                    <!-- DOWNLOAD PROGRESS (spans full row width) -->
+                    <div v-if="hasDownloadState(track.id)" class="row-download-progress">
+                        <q-linear-progress :value="downloadProgressValue(track.id)"
+                            :indeterminate="isDownloadIndeterminate(track.id)" color="positive"
+                            track-color="rgba(255, 255, 255, 0.12)" rounded size="4px" />
+                        <div class="download-progress-label">{{ downloadStatusLabel(track.id) }}</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- WAVEFORM HERO: title / release / genre / price overlaid on top of waveform -->
-                <div class="waveform-hero" @click="(e) => seekTrack(track, e)">
-                    <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-base" />
-                    <img v-if="track.waveform" :src="track.waveform" class="waveform-bg waveform-bg-played" :style="{
-                        clipPath: `inset(0 ${100 - (currentId === track.id ? progress * 100 : 0)}% 0 0)`
-                    }" />
-                    <div class="waveform-scrim" />
-                    <div v-if="currentId === track.id" class="playhead-line"
-                        :style="{ left: (progress * 100) + '%' }" />
+        </template>
 
-                    <div class="hero-content">
-                        <div class="hero-top">
-                            <div class="hero-title ellipsis">{{ track.title }}</div>
-                            <div class="hero-release ellipsis">{{ track.release?.title || 'No Release' }}</div>
+        <template v-else>
+            <div v-if="filteredMusic.length" class="track-grid relative z-10">
+                <div v-for="track in filteredMusic" :key="track.id" class="grid-card"
+                    :class="{ 'track-playing': currentId === track.id }">
+                    <div class="grid-cover" @click="selectTrack(track)">
+                        <img v-if="getCoverArt(track)" :src="getCoverArt(track)" class="cover-img" />
+                        <div v-else class="cover-fallback">
+                            <q-icon name="music_note" size="28px" color="grey-6" />
                         </div>
-                        <div class="hero-bottom">
+                        <div class="grid-cover-overlay">
+                            <q-icon :name="currentId === track.id && isPlaying ? 'pause' : 'play_arrow'" size="26px"
+                                color="white" />
+                        </div>
+                        <q-btn round flat dense icon="more_vert" class="grid-more-btn"
+                            @click.stop="openTrackActions(track)" />
+                    </div>
+
+                    <div class="grid-info">
+                        <div class="grid-title ellipsis">{{ track.title }}</div>
+                        <div class="grid-release ellipsis">{{ track.release?.title || 'No Release' }}</div>
+                        <div class="grid-bottom">
                             <span class="genre-tag">{{ track.genre?.title || '—' }}</span>
                             <span class="price-tag">
                                 {{ isFreeTrack(track) ? 'Free' : `R${Number(track.price || 0).toFixed(2)}` }}
                             </span>
                         </div>
                     </div>
-                </div>
 
-                <!-- DESKTOP ACTIONS -->
-                <div class="col-action desktop-actions">
-                    <q-btn round flat dense icon="info" class="action-btn" @click="goToTrackDetails(track)" />
-                </div>
-
-                <div class="col-action desktop-actions">
-                    <q-btn v-if="isFreeTrack(track)" round flat dense icon="download" class="action-btn"
-                        :disable="isDownloading(track.id)" @click="downloadTrack(track)" />
-                    <q-btn v-else round flat dense icon="add_shopping_cart" class="action-btn cart-action"
-                        @click="addTrackToCart(track)" />
-                </div>
-
-                <!-- MOBILE ACTIONS -->
-                <div class="mobile-actions lt-md">
-                    <q-btn round flat dense icon="more_horiz" class="action-btn" @click="openTrackActions(track)" />
-
-                    <q-btn v-if="isFreeTrack(track)" round flat dense
-                        :icon="isDownloading(track.id) ? 'downloading' : 'download'" class="action-btn"
-                        :disable="isDownloading(track.id)" @click="downloadTrack(track)" />
-
-                    <q-btn v-else round flat dense icon="add_shopping_cart" class="action-btn cart-action"
-                        @click="addTrackToCart(track)" />
-                </div>
-
-                <!-- DOWNLOAD PROGRESS (spans full row width) -->
-                <div v-if="hasDownloadState(track.id)" class="row-download-progress">
-                    <q-linear-progress :value="downloadProgressValue(track.id)"
-                        :indeterminate="isDownloadIndeterminate(track.id)" color="positive"
-                        track-color="rgba(255, 255, 255, 0.12)" rounded size="4px" />
-                    <div class="download-progress-label">{{ downloadStatusLabel(track.id) }}</div>
+                    <div v-if="hasDownloadState(track.id)" class="grid-download-progress">
+                        <q-linear-progress :value="downloadProgressValue(track.id)"
+                            :indeterminate="isDownloadIndeterminate(track.id)" color="positive"
+                            track-color="rgba(255,255,255,0.12)" rounded size="4px" />
+                    </div>
                 </div>
             </div>
-        </div>
+        </template>
 
         <q-dialog v-model="mobileActionsOpen" position="bottom" transition-show="slide-up" transition-hide="slide-down">
             <q-card class="track-actions-sheet">
@@ -618,17 +644,40 @@ const seekTrack = (track, e) => {
         sharedSeekTo.value(percent)
     }
 }
+const VIEW_MODE_KEY = 'musicViewMode'
+const viewMode = ref(localStorage.getItem(VIEW_MODE_KEY) === 'grid' ? 'grid' : 'list')
 
+function setViewMode(mode) {
+    if (mode !== 'list' && mode !== 'grid') return
+    viewMode.value = mode
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+}
 onMounted(async () => {
     await fetchMusic()
 })
 </script>
 <style scoped>
 .store-page {
-    background: #0a0a0f;
+    background: var(--app-bg-page, #0a0a0f);
+    color: var(--app-text-primary, #f3f4f6);
     min-height: 100vh;
     padding-bottom: 6rem;
     font-family: var(--q-font-sans, system-ui, sans-serif);
+}
+
+.view-toggle-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.6rem 1rem 0;
+}
+
+.view-toggle :deep(.q-btn) {
+    border: 0.5px solid var(--app-border, rgba(255, 255, 255, 0.1));
+    color: var(--app-text-secondary, #9ca3af);
+}
+
+.view-toggle :deep(.q-btn--active) {
+    color: #fff !important;
 }
 
 .store-header {
@@ -749,12 +798,8 @@ onMounted(async () => {
 }
 
 .track-list-header {
-    padding: 0.5rem 1rem 0.7rem;
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #374151;
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
+    color: var(--app-text-secondary, #374151);
+    border-bottom: 0.5px solid var(--app-border, rgba(255, 255, 255, 0.05));
 }
 
 .track-list {
@@ -765,14 +810,8 @@ onMounted(async () => {
 }
 
 .track-row {
-    padding: 0.7rem 1rem;
-    background: rgba(255, 255, 255, 0.025);
-    border: 0.5px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0.7rem;
-    transition: all 0.18s;
-    cursor: default;
-    margin: 0 0.25rem;
-    overflow: hidden;
+    background: var(--app-surface, rgba(255, 255, 255, 0.025));
+    border: 0.5px solid var(--app-border, rgba(255, 255, 255, 0.06));
 }
 
 .track-row:hover {
@@ -910,26 +949,17 @@ onMounted(async () => {
 }
 
 .hero-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #f3f4f6;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--app-text-primary) !important;
+}
+
+.hero-release {
+    color: var(--app-text-primary) !important;
 }
 
 .track-playing .hero-title {
     color: #c4b5fd;
 }
 
-.hero-release {
-    font-size: 0.68rem;
-    color: rgba(229, 231, 235, 0.6);
-    margin-top: 0.1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 .hero-bottom {
     display: flex;
@@ -969,7 +999,7 @@ onMounted(async () => {
 }
 
 .action-btn {
-    color: #4b5563 !important;
+    color: var(--app-text-primary) !important;
     background: transparent !important;
     border: 0.5px solid rgba(255, 255, 255, 0.07) !important;
     border-radius: 0.45rem !important;
@@ -1037,10 +1067,8 @@ onMounted(async () => {
     }
 
     .track-actions-sheet {
-        border-radius: 1rem 1rem 0 0;
-        padding: 0.5rem 0.9rem 1rem;
-        background: #111827;
-        color: #f9fafb;
+        background: var(--app-surface-elevated, #111827);
+        color: var(--app-text-primary, #f9fafb);
     }
 
     .sheet-handle {
@@ -1090,5 +1118,103 @@ onMounted(async () => {
     .sheet-download-progress {
         margin-top: 0.6rem;
     }
+}
+
+.track-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    padding: 0.75rem 1rem 1rem;
+}
+
+@media (min-width: 600px) {
+    .track-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 900px) {
+    .track-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1280px) {
+    .track-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.grid-card {
+    background: var(--app-surface, rgba(255, 255, 255, 0.025));
+    border: 0.5px solid var(--app-border, rgba(255, 255, 255, 0.06));
+    border-radius: 0.75rem;
+    overflow: hidden;
+    transition: all 0.18s;
+}
+
+.grid-card.track-playing {
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(124, 58, 237, 0.35);
+}
+
+.grid-cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+}
+
+.grid-cover-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.grid-card:hover .grid-cover-overlay,
+.grid-card.track-playing .grid-cover-overlay {
+    opacity: 1;
+}
+
+.grid-more-btn {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    background: rgba(0, 0, 0, 0.45) !important;
+    color: #fff !important;
+}
+
+.grid-info {
+    padding: 0.5rem 0.6rem 0.6rem;
+}
+
+.grid-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--app-text-primary, #f3f4f6);
+}
+
+.grid-release {
+    font-size: 0.66rem;
+    color: var(--app-text-secondary, rgba(229, 231, 235, 0.6));
+    margin-top: 0.1rem;
+}
+
+.grid-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+
+.grid-download-progress {
+    padding: 0 0.6rem 0.5rem;
 }
 </style>

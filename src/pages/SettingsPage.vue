@@ -2,9 +2,25 @@
     <q-page class="q-pa-md" style="max-width: 980px; margin: 0 auto;">
         <div>
             <div class="text-h5 text-weight-bold q-mb-sm">System Settings</div>
-            <div class="text-caption text-grey-5 q-mb-lg">
-                Device diagnostics and notification permissions.
-            </div>
+            <q-card flat bordered class="q-mb-md">
+                <q-card-section>
+                    <div class="text-subtitle1 text-weight-medium q-mb-sm">Appearance</div>
+                    <q-item tag="label" class="q-px-none">
+                        <q-item-section avatar>
+                            <q-icon :name="darkMode ? 'dark_mode' : 'light_mode'" />
+                        </q-item-section>
+                        <q-item-section>
+                            <q-item-label>Dark mode</q-item-label>
+                            <q-item-label caption>
+                                {{ darkMode ? 'Apple Music-style dark theme' : 'Light theme' }}
+                            </q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                            <q-toggle v-model="darkMode" color="primary" @update:model-value="onToggleDarkMode" />
+                        </q-item-section>
+                    </q-item>
+                </q-card-section>
+            </q-card>
 
             <q-card flat bordered class="q-mb-md">
                 <q-card-section>
@@ -367,7 +383,19 @@ async function loadAll() {
     ])
     updateScreenInfo()
 }
+const darkMode = ref($q.dark.isActive)
 
+// restore saved preference on load
+const savedDarkMode = localStorage.getItem('darkMode')
+if (savedDarkMode !== null) {
+    darkMode.value = savedDarkMode === '1'
+    $q.dark.set(darkMode.value)
+}
+
+function onToggleDarkMode(value) {
+    $q.dark.set(value)
+    localStorage.setItem('darkMode', value ? '1' : '0')
+}
 onMounted(async () => {
     await loadAll()
 

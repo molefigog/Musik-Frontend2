@@ -82,7 +82,8 @@
                     <q-item-section>Releases</q-item-section>
                 </q-item> -->
 
-                <q-item v-if="isApk" to="/settings" clickable v-ripple>
+                <!-- <q-item v-if="isApk" to="/settings" clickable v-ripple> -->
+                <q-item to="/settings" clickable v-ripple>
                     <q-item-section avatar>
                         <q-icon name="settings" />
                     </q-item-section>

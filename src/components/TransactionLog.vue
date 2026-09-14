@@ -7,7 +7,7 @@
                 :subtitle="formatDate(payment.created_at)" :icon="paymentIcon(payment.status)"
                 :color="paymentColor(payment.status)">
 
-                <q-card flat bordered class="bg-dark text-white">
+                <q-card flat bordered>
 
                     <q-card-section>
 
@@ -19,7 +19,8 @@
                                 </div>
 
                                 <div class="text-caption text-grey-5">
-                                    Payment #{{ payment.payment_id || payment.id }} · Item #{{ payment.item_id || 'N/A' }}
+                                    Payment #{{ payment.payment_id || payment.id }} · Item #{{ payment.item_id || 'N/A'
+                                    }}
                                 </div>
 
                                 <div class="text-body2">

@@ -311,7 +311,8 @@ async function download() {
 
 <style scoped>
 .task-card-compact {
-    width: 344px;
+    width: 100%;
+    max-width: 344px;
     height: 80px;
 }
 
