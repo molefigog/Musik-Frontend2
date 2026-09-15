@@ -49,7 +49,7 @@
                                 :loading="isLoggingIn" :disable="isLoggingIn" />
 
                             <q-btn flat class="full-width glass-btn-secondary q-mt-sm" label="Continue with Google"
-                                icon="music_note" />
+                                icon="music_note" @click="loginWithGoogle" />
 
                             <div class="text-center q-mt-lg subtitle">
                                 Don't have an account?
@@ -70,10 +70,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+
 import { useAuthStore } from 'stores/auth'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { Browser } from '@capacitor/browser'
+import { App } from '@capacitor/app'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ApiService } from 'src/services/api'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -139,4 +143,34 @@ const onLogin = async () => {
         isLoggingIn.value = false
     }
 }
+
+
+const authStore = useAuthStore()
+let googleListener = null
+
+async function loginWithGoogle() {
+    await Browser.open({ url: `${ApiService.defaults.baseURL}/auth/google/redirect` })
+}
+
+async function handleGoogleUrlOpen(event) {
+    const url = event?.url || ''
+    if (!url.startsWith('com.streama.app://auth-callback')) return
+
+    await Browser.close()
+    const token = new URL(url).searchParams.get('token')
+    if (!token) return
+
+    authStore.token = token
+    localStorage.setItem('token', token)
+    await authStore.fetchUser()
+    await authStore.registerDevice()
+    // navigate to dashboard here
+}
+
+onMounted(async () => {
+    googleListener = await App.addListener('appUrlOpen', handleGoogleUrlOpen)
+})
+onBeforeUnmount(() => {
+    googleListener?.remove()
+})
 </script>
