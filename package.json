@@ -37,10 +37,12 @@
     "wavesurfer.js": "^7.12.1"
   },
   "devDependencies": {
+    "@electron/packager": "^19.1.1",
     "@eslint/js": "^9.14.0",
     "@quasar/app-vite": "^2.1.0",
     "@vue/eslint-config-prettier": "^10.1.0",
     "autoprefixer": "^10.4.2",
+    "electron": "^44.3.0",
     "eslint": "^9.14.0",
     "eslint-plugin-vue": "^10.4.0",
     "globals": "^16.4.0",

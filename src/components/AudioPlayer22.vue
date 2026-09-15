@@ -31,29 +31,20 @@ const props = defineProps({
 
 const audio = sharedAudio
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
-
 const currentId = sharedCurrentId
 const isPlaying = sharedIsPlaying
 const progress = sharedProgress
 const duration = sharedDuration
 const currentTime = sharedCurrentTime
 const isLoading = sharedIsLoading
-
 const isScrubbing = ref(false)
 const scrubTrackEl = ref(null)
-
-// Android mini-player visibility. Hidden while nothing is loaded,
-// auto-opens when a track starts, and can be toggled independently
-// of playback (closing it does not stop audio).
-const dialog = ref(false)
-
 const emit = defineEmits([
     'update:playing',
     'update:currentId',
     'seek',
     'progress'
 ])
-
 const getSrc = (track) => {
     if (!track?.file_src) return ''
     if (track.file_src.startsWith('http')) return track.file_src
@@ -91,7 +82,6 @@ const playAudio = async (track) => {
         togglePlay()
         return
     }
-
     isLoading.value = true
     audio.src = src
     currentId.value = track.id
@@ -117,11 +107,9 @@ const togglePlay = async () => {
         await audio.play()
         isPlaying.value = true
     }
-
     if (currentTrack.value) {
         showAudioNotification({ title: currentTrack.value.title, isPlaying: isPlaying.value })
     }
-
     emit('update:playing', isPlaying.value)
 }
 
@@ -141,7 +129,6 @@ setAudioNotificationActionHandler((actionId) => {
     if (actionId === 'toggle') togglePlay()
     if (actionId === 'stop') stopAudio()
 })
-
 const playNext = () => {
     if (!hasNext.value) return
     playAudio(props.tracks[currentIndex.value + 1])
@@ -158,6 +145,7 @@ audio.ontimeupdate = () => {
         duration.value = audio.duration
         progress.value = audio.currentTime / audio.duration
         emit('progress', progress.value)
+
     }
 }
 
@@ -221,35 +209,13 @@ const seekTo = (percent) => {
     if (!audio.duration) return
     audio.currentTime = percent * audio.duration
 }
-
 sharedSeekTo.value = seekTo
-
-// Android only: open the mini-player automatically when a new track
-// starts, and hide it again once playback is fully stopped/cleared.
-// A manual dialog.value = false (via the close button or the fab)
-// is left untouched by this watcher unless the track itself changes.
-if (isAndroid) {
-    watch(currentTrack, (track, prevTrack) => {
-        if (track && !prevTrack) {
-            dialog.value = true
-        } else if (!track) {
-            dialog.value = false
-        }
-    })
-}
-
-const toggleDialog = () => {
-    dialog.value = !dialog.value
-}
-
 defineExpose({
     playAudio,
     seekTo,
     stopAudio,
 })
-
 watch(() => props.tracks, registerTracks, { immediate: true })
-
 /* keep playback running across route changes */
 onUnmounted(() => {
     stopScrub()
@@ -258,8 +224,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- WEB: full bottom player bar -->
-    <div v-if="currentTrack && !isAndroid" class="player-bar fixed-bottom">
+    <div v-if="currentTrack" class="player-bar fixed-bottom">
 
         <!-- SEEK BAR -->
         <div ref="scrubTrackEl" class="seek-track" @click="seek" @pointerdown.prevent="startScrub">
@@ -291,7 +256,7 @@ onUnmounted(() => {
                     <q-icon :name="isPlaying ? 'pause' : 'play_arrow'" size="22px" />
                 </button>
 
-                <button class="ctrl-btn stop-btn" aria-label="Stop" @click="stopAudio">
+                <button v-if="!isAndroid" class="ctrl-btn stop-btn" aria-label="Stop" @click="stopAudio">
                     <q-icon name="stop" size="20px" />
                 </button>
 
@@ -315,35 +280,7 @@ onUnmounted(() => {
 
         </div>
     </div>
-
-    <!-- ANDROID: toggleable mini-player -->
-    <template v-if="isAndroid">
-        <q-dialog v-model="dialog" position="bottom" seamless>
-            <q-card v-if="currentTrack" style="width: 350px" class="mini-player-card">
-                <q-linear-progress :value="progress" color="pink" />
-
-                <q-card-section class="row items-center no-wrap">
-                    <div class="mini-info">
-                        <div class="text-weight-bold ellipsis">{{ currentTrack.title || 'Untitled Beat' }}</div>
-                        <div class="text-grey ellipsis">{{ isPlaying ? 'Now Playing' : 'Paused' }}</div>
-                    </div>
-
-                    <q-space />
-
-                    <q-btn flat round dense icon="fast_rewind" :disable="!hasPrev" @click="playPrev" />
-                    <q-btn flat round dense :icon="isPlaying ? 'pause' : 'play_arrow'" @click="togglePlay" />
-                    <q-btn flat round dense icon="fast_forward" :disable="!hasNext" @click="playNext" />
-                    <q-btn flat round dense icon="close" class="q-ml-xs" @click="dialog = false" />
-                </q-card-section>
-            </q-card>
-        </q-dialog>
-
-        <!-- Reopen button: shown only while a track is loaded but the mini-player is collapsed -->
-        <q-btn v-if="currentTrack && !dialog" round color="primary" :icon="isPlaying ? 'pause' : 'play_arrow'"
-            class="mini-player-fab" @click="toggleDialog" />
-    </template>
 </template>
-
 <style scoped>
 .player-bar {
     position: fixed;
@@ -473,15 +410,19 @@ onUnmounted(() => {
     cursor: default;
 }
 
+.stop-btn {
+    display: none;
+}
+
 .ctrl-btn.play-main {
     width: 2.5rem;
     height: 2.5rem;
-    background: #fa233b1f;
+    background: #7c3aed;
     color: #fff;
 }
 
 .ctrl-btn.play-main:hover {
-    background: #fa233c67;
+    background: #6d28d9;
     transform: scale(1.03);
 }
 
@@ -609,6 +550,10 @@ onUnmounted(() => {
         gap: 0.5rem;
     }
 
+    .stop-btn {
+        display: none;
+    }
+
     .ctrl-btn {
         width: 2.35rem;
         height: 2.35rem;
@@ -628,28 +573,5 @@ onUnmounted(() => {
         height: 0.8rem;
         opacity: 1;
     }
-}
-
-/* ANDROID mini-player */
-.mini-player-card {
-    border-radius: 12px;
-}
-
-.mini-info {
-    min-width: 0;
-    flex: 1;
-}
-
-.mini-info .ellipsis {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.mini-player-fab {
-    position: fixed;
-    right: 16px;
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-    z-index: 9999;
 }
 </style>
