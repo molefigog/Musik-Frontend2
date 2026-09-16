@@ -1,0 +1,1529 @@
+diff --git a/src-capacitor/android/app/build.gradle b/src-capacitor/android/app/build.gradle
+index 6d32487..6070ac3 100644
+--- a/src-capacitor/android/app/build.gradle
++++ b/src-capacitor/android/app/build.gradle
+@@ -49,6 +49,11 @@ dependencies {
+     // https://github.com/paypal/paypal-android/releases for the current version
+     implementation 'com.paypal.android:card-payments:2.3.0'
+     implementation 'com.paypal.android:paypal-web-payments:2.3.0'
++
++    // ExoPlayer (custom ExoAudioPlugin) — check
++    // https://developer.android.com/media/media3/exoplayer/hello-world for the current version
++    implementation 'androidx.media3:media3-exoplayer:1.4.1'
++    implementation 'androidx.media3:media3-common:1.4.1'
+ }
+ 
+ apply from: 'capacitor.build.gradle'
+diff --git a/src-capacitor/android/app/src/main/java/com/streama/app/ExoAudioPlugin.java b/src-capacitor/android/app/src/main/java/com/streama/app/ExoAudioPlugin.java
+new file mode 100644
+index 0000000..10e2763
+--- /dev/null
++++ b/src-capacitor/android/app/src/main/java/com/streama/app/ExoAudioPlugin.java
+@@ -0,0 +1,167 @@
++package com.streama.app;
++
++import android.net.Uri;
++import android.os.Handler;
++import android.os.Looper;
++import androidx.media3.common.MediaItem;
++import androidx.media3.common.PlaybackException;
++import androidx.media3.common.Player;
++import androidx.media3.exoplayer.ExoPlayer;
++import com.getcapacitor.JSObject;
++import com.getcapacitor.Plugin;
++import com.getcapacitor.PluginCall;
++import com.getcapacitor.PluginMethod;
++import com.getcapacitor.annotation.CapacitorPlugin;
++
++/**
++ * Wraps a single androidx.media3 ExoPlayer instance and exposes it to the
++ * JS "session player" (see src/services/audio-engine.js) with the same
++ * load/play/pause/seekTo/stop shape the web <audio> engine uses.
++ *
++ * One player instance lives for the whole app process, mirroring the JS
++ * side's single shared player: there is one ExoPlayer, not one per page.
++ *
++ * Progress is pushed to JS on a timer via notifyListeners("progress", ...),
++ * matching what the web engine's audio.ontimeupdate already sends.
++ */
++@CapacitorPlugin(name = "ExoAudioPlayer")
++public class ExoAudioPlugin extends Plugin {
++
++    private ExoPlayer player;
++    private final Handler progressHandler = new Handler(Looper.getMainLooper());
++    private static final long PROGRESS_INTERVAL_MS = 500;
++
++    private final Runnable progressTick = new Runnable() {
++        @Override
++        public void run() {
++            emitProgress();
++            progressHandler.postDelayed(this, PROGRESS_INTERVAL_MS);
++        }
++    };
++
++    @Override
++    public void load() {
++        // Capacitor lifecycle hook (not related to the JS "load" method).
++        getActivity().runOnUiThread(this::ensurePlayer);
++    }
++
++    private void ensurePlayer() {
++        if (player != null) return;
++
++        player = new ExoPlayer.Builder(getContext()).build();
++
++        player.addListener(new Player.Listener() {
++            @Override
++            public void onIsPlayingChanged(boolean isPlaying) {
++                JSObject data = new JSObject();
++                data.put("isPlaying", isPlaying);
++                notifyListeners("playState", data);
++
++                if (isPlaying) {
++                    progressHandler.removeCallbacks(progressTick);
++                    progressHandler.post(progressTick);
++                } else {
++                    progressHandler.removeCallbacks(progressTick);
++                }
++            }
++
++            @Override
++            public void onPlaybackStateChanged(int state) {
++                if (state == Player.STATE_READY) {
++                    JSObject data = new JSObject();
++                    data.put("duration", Math.max(0, player.getDuration()) / 1000.0);
++                    notifyListeners("loaded", data);
++                } else if (state == Player.STATE_ENDED) {
++                    notifyListeners("ended", new JSObject());
++                }
++            }
++
++            @Override
++            public void onPlayerError(PlaybackException error) {
++                JSObject data = new JSObject();
++                data.put("message", error.getMessage());
++                notifyListeners("error", data);
++            }
++        });
++    }
++
++    private void emitProgress() {
++        if (player == null) return;
++
++        JSObject data = new JSObject();
++        data.put("currentTime", Math.max(0, player.getCurrentPosition()) / 1000.0);
++        data.put("duration", Math.max(0, player.getDuration()) / 1000.0);
++        notifyListeners("progress", data);
++    }
++
++    @PluginMethod
++    public void load(PluginCall call) {
++        String src = call.getString("src");
++        if (src == null || src.isEmpty()) {
++            call.reject("src is required");
++            return;
++        }
++
++        getActivity().runOnUiThread(() -> {
++            ensurePlayer();
++            player.setMediaItem(MediaItem.fromUri(Uri.parse(src)));
++            player.prepare();
++            call.resolve();
++        });
++    }
++
++    @PluginMethod
++    public void play(PluginCall call) {
++        getActivity().runOnUiThread(() -> {
++            ensurePlayer();
++            player.play();
++            call.resolve();
++        });
++    }
++
++    @PluginMethod
++    public void pause(PluginCall call) {
++        getActivity().runOnUiThread(() -> {
++            if (player != null) player.pause();
++            call.resolve();
++        });
++    }
++
++    @PluginMethod
++    public void seekTo(PluginCall call) {
++        Double percent = call.getDouble("percent");
++        if (percent == null) {
++            call.reject("percent is required");
++            return;
++        }
++
++        getActivity().runOnUiThread(() -> {
++            if (player != null && player.getDuration() > 0) {
++                long target = (long) (percent * player.getDuration());
++                player.seekTo(target);
++            }
++            call.resolve();
++        });
++    }
++
++    @PluginMethod
++    public void stop(PluginCall call) {
++        getActivity().runOnUiThread(() -> {
++            if (player != null) {
++                player.stop();
++                player.clearMediaItems();
++            }
++            progressHandler.removeCallbacks(progressTick);
++            call.resolve();
++        });
++    }
++
++    @Override
++    protected void handleOnDestroy() {
++        progressHandler.removeCallbacks(progressTick);
++        if (player != null) {
++            player.release();
++            player = null;
++        }
++    }
++}
+diff --git a/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java b/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
+index 037edee..5c975fd 100644
+--- a/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
++++ b/src-capacitor/android/app/src/main/java/com/streama/app/MainActivity.java
+@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
+         registerPlugin(TorchPlugin.class);
+         registerPlugin(PayPalCardPlugin.class);
+         registerPlugin(PayPalWebPlugin.class);
++        registerPlugin(ExoAudioPlugin.class);
+         super.onCreate(savedInstanceState);
+     }
+ 
+diff --git a/src/components/AudioPlayer.vue b/src/components/AudioPlayer.vue
+index fd6c50d..13e09eb 100644
+--- a/src/components/AudioPlayer.vue
++++ b/src/components/AudioPlayer.vue
+@@ -11,16 +11,15 @@ import {
+     sharedIsPlaying,
+     sharedPlayAudio,
+     sharedSeekTo,
++    sharedStopAudio,
+     sharedTracks,
+     sharedProgress,
++    sharedCurrentTime,
++    sharedDuration,
++    sharedIsLoading,
+     registerTracks,
+ } from 'src/services/audio-player-state'
+-
+-// Keep one audio instance and playback state for the lifetime of the app module.
+-const sharedAudio = new Audio()
+-const sharedDuration = ref(0)
+-const sharedCurrentTime = ref(0)
+-const sharedIsLoading = ref(false)
++import { createAudioEngine } from 'src/services/audio-engine'
+ 
+ const props = defineProps({
+     tracks: {
+@@ -29,7 +28,6 @@ const props = defineProps({
+     }
+ })
+ 
+-const audio = sharedAudio
+ const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+ 
+ const currentId = sharedCurrentId
+@@ -56,7 +54,10 @@ const emit = defineEmits([
+ 
+ const getSrc = (track) => {
+     if (!track?.file_src) return ''
+-    if (track.file_src.startsWith('http')) return track.file_src
++    // Already-resolved sources (public URLs, or blob:/data: URLs built by a
++    // caller that needed to fetch an authenticated file first) pass through
++    // untouched. Everything else is treated as a storage-relative path.
++    if (/^(https?:|blob:|data:)/.test(track.file_src)) return track.file_src
+     return `${import.meta.env.VITE_API_BASE_URL}/storage/${track.file_src}`
+ }
+ 
+@@ -83,6 +84,36 @@ const formatTime = (sec) => {
+     return `${m}:${s < 10 ? '0' : ''}${s}`
+ }
+ 
++// One playback engine for the lifetime of the app module: HTML5 <audio> on
++// web, the native ExoAudioPlayer Capacitor plugin on Android. Both report
++// back through this same set of callbacks, which just write into the
++// shared refs — nothing downstream needs to know which engine is active.
++const engine = createAudioEngine({
++    onTimeUpdate: ({ currentTime: ct, duration: d, progress: p }) => {
++        currentTime.value = ct
++        duration.value = d
++        progress.value = p
++        emit('progress', p)
++    },
++    onLoadedMetadata: (d) => {
++        duration.value = d
++    },
++    onEnded: () => {
++        if (hasNext.value) {
++            playNext()
++        } else {
++            isPlaying.value = false
++            progress.value = 0
++            currentTime.value = 0
++            currentId.value = null
++            clearAudioNotification()
++        }
++    },
++    onPlayState: (playing) => {
++        isPlaying.value = playing
++    },
++})
++
+ const playAudio = async (track) => {
+     const src = getSrc(track)
+     if (!src) return
+@@ -93,11 +124,14 @@ const playAudio = async (track) => {
+     }
+ 
+     isLoading.value = true
+-    audio.src = src
+-    currentId.value = track.id
++    currentTime.value = 0
++    duration.value = 0
++    progress.value = 0
+ 
+     try {
+-        await audio.play()
++        await engine.load(src)
++        currentId.value = track.id
++        await engine.play()
+         isPlaying.value = true
+         showAudioNotification({ title: track.title, isPlaying: true })
+         emit('update:playing', true)
+@@ -111,10 +145,10 @@ const playAudio = async (track) => {
+ 
+ const togglePlay = async () => {
+     if (isPlaying.value) {
+-        audio.pause()
++        await engine.pause()
+         isPlaying.value = false
+     } else {
+-        await audio.play()
++        await engine.play()
+         isPlaying.value = true
+     }
+ 
+@@ -126,16 +160,17 @@ const togglePlay = async () => {
+ }
+ 
+ const stopAudio = () => {
+-    audio.pause()
+-    audio.currentTime = 0
++    engine.stop()
+     isPlaying.value = false
+     progress.value = 0
+     currentTime.value = 0
++    duration.value = 0
+     currentId.value = null
+     clearAudioNotification()
+ }
+ 
+ sharedPlayAudio.value = playAudio
++sharedStopAudio.value = stopAudio
+ 
+ setAudioNotificationActionHandler((actionId) => {
+     if (actionId === 'toggle') togglePlay()
+@@ -152,46 +187,21 @@ const playPrev = () => {
+     playAudio(props.tracks[currentIndex.value - 1])
+ }
+ 
+-audio.ontimeupdate = () => {
+-    if (audio.duration) {
+-        currentTime.value = audio.currentTime
+-        duration.value = audio.duration
+-        progress.value = audio.currentTime / audio.duration
+-        emit('progress', progress.value)
+-    }
+-}
+-
+-audio.onloadedmetadata = () => {
+-    duration.value = audio.duration
+-}
+-
+-audio.onended = () => {
+-    if (hasNext.value) {
+-        playNext()
+-    } else {
+-        isPlaying.value = false
+-        progress.value = 0
+-        currentTime.value = 0
+-        currentId.value = null
+-        clearAudioNotification()
+-    }
+-}
+-
+ const seek = (e) => {
+     const el = e.currentTarget
+     const rect = el.getBoundingClientRect()
+     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+-    if (!audio.duration) return
+-    audio.currentTime = percent * audio.duration
++    if (!duration.value) return
++    engine.seekTo(percent)
+     emit('seek', percent)
+ }
+ 
+ const seekByClientX = (clientX) => {
+     const el = scrubTrackEl.value
+-    if (!el || !audio.duration) return
++    if (!el || !duration.value) return
+     const rect = el.getBoundingClientRect()
+     const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+-    audio.currentTime = percent * audio.duration
++    engine.seekTo(percent)
+     emit('seek', percent)
+ }
+ 
+@@ -209,7 +219,7 @@ const stopScrub = () => {
+ }
+ 
+ const startScrub = (e) => {
+-    if (!audio.duration) return
++    if (!duration.value) return
+     isScrubbing.value = true
+     seekByClientX(e.clientX)
+     window.addEventListener('pointermove', onScrubMove)
+@@ -218,8 +228,8 @@ const startScrub = (e) => {
+ }
+ 
+ const seekTo = (percent) => {
+-    if (!audio.duration) return
+-    audio.currentTime = percent * audio.duration
++    if (!duration.value) return
++    engine.seekTo(percent)
+ }
+ 
+ sharedSeekTo.value = seekTo
+diff --git a/src/components/AudioPlayer22.vue b/src/components/AudioPlayer22.vue
+deleted file mode 100644
+index e83a18c..0000000
+--- a/src/components/AudioPlayer22.vue
++++ /dev/null
+@@ -1,577 +0,0 @@
+-<script setup>
+-import { ref, computed, onUnmounted, watch } from 'vue'
+-import { Capacitor } from '@capacitor/core'
+-import {
+-    clearAudioNotification,
+-    setAudioNotificationActionHandler,
+-    showAudioNotification,
+-} from 'src/services/notifications'
+-import {
+-    sharedCurrentId,
+-    sharedIsPlaying,
+-    sharedPlayAudio,
+-    sharedSeekTo,
+-    sharedTracks,
+-    sharedProgress,
+-    registerTracks,
+-} from 'src/services/audio-player-state'
+-
+-// Keep one audio instance and playback state for the lifetime of the app module.
+-const sharedAudio = new Audio()
+-const sharedDuration = ref(0)
+-const sharedCurrentTime = ref(0)
+-const sharedIsLoading = ref(false)
+-
+-const props = defineProps({
+-    tracks: {
+-        type: Array,
+-        default: () => []
+-    }
+-})
+-
+-const audio = sharedAudio
+-const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+-const currentId = sharedCurrentId
+-const isPlaying = sharedIsPlaying
+-const progress = sharedProgress
+-const duration = sharedDuration
+-const currentTime = sharedCurrentTime
+-const isLoading = sharedIsLoading
+-const isScrubbing = ref(false)
+-const scrubTrackEl = ref(null)
+-const emit = defineEmits([
+-    'update:playing',
+-    'update:currentId',
+-    'seek',
+-    'progress'
+-])
+-const getSrc = (track) => {
+-    if (!track?.file_src) return ''
+-    if (track.file_src.startsWith('http')) return track.file_src
+-    return `${import.meta.env.VITE_API_BASE_URL}/storage/${track.file_src}`
+-}
+-
+-const currentTrack = computed(() =>
+-    sharedTracks.value.find(t => t.id === currentId.value)
+-)
+-
+-const currentIndex = computed(() =>
+-    sharedTracks.value.findIndex(t => t.id === currentId.value)
+-)
+-
+-const hasNext = computed(() =>
+-    currentIndex.value >= 0 && currentIndex.value < props.tracks.length - 1
+-)
+-
+-const hasPrev = computed(() =>
+-    currentIndex.value > 0
+-)
+-
+-const formatTime = (sec) => {
+-    if (!sec || isNaN(sec)) return '0:00'
+-    const m = Math.floor(sec / 60)
+-    const s = Math.floor(sec % 60)
+-    return `${m}:${s < 10 ? '0' : ''}${s}`
+-}
+-
+-const playAudio = async (track) => {
+-    const src = getSrc(track)
+-    if (!src) return
+-
+-    if (currentId.value === track.id) {
+-        togglePlay()
+-        return
+-    }
+-    isLoading.value = true
+-    audio.src = src
+-    currentId.value = track.id
+-
+-    try {
+-        await audio.play()
+-        isPlaying.value = true
+-        showAudioNotification({ title: track.title, isPlaying: true })
+-        emit('update:playing', true)
+-        emit('update:currentId', track.id)
+-    } catch (e) {
+-        console.error(e)
+-    } finally {
+-        isLoading.value = false
+-    }
+-}
+-
+-const togglePlay = async () => {
+-    if (isPlaying.value) {
+-        audio.pause()
+-        isPlaying.value = false
+-    } else {
+-        await audio.play()
+-        isPlaying.value = true
+-    }
+-    if (currentTrack.value) {
+-        showAudioNotification({ title: currentTrack.value.title, isPlaying: isPlaying.value })
+-    }
+-    emit('update:playing', isPlaying.value)
+-}
+-
+-const stopAudio = () => {
+-    audio.pause()
+-    audio.currentTime = 0
+-    isPlaying.value = false
+-    progress.value = 0
+-    currentTime.value = 0
+-    currentId.value = null
+-    clearAudioNotification()
+-}
+-
+-sharedPlayAudio.value = playAudio
+-
+-setAudioNotificationActionHandler((actionId) => {
+-    if (actionId === 'toggle') togglePlay()
+-    if (actionId === 'stop') stopAudio()
+-})
+-const playNext = () => {
+-    if (!hasNext.value) return
+-    playAudio(props.tracks[currentIndex.value + 1])
+-}
+-
+-const playPrev = () => {
+-    if (!hasPrev.value) return
+-    playAudio(props.tracks[currentIndex.value - 1])
+-}
+-
+-audio.ontimeupdate = () => {
+-    if (audio.duration) {
+-        currentTime.value = audio.currentTime
+-        duration.value = audio.duration
+-        progress.value = audio.currentTime / audio.duration
+-        emit('progress', progress.value)
+-
+-    }
+-}
+-
+-audio.onloadedmetadata = () => {
+-    duration.value = audio.duration
+-}
+-
+-audio.onended = () => {
+-    if (hasNext.value) {
+-        playNext()
+-    } else {
+-        isPlaying.value = false
+-        progress.value = 0
+-        currentTime.value = 0
+-        currentId.value = null
+-        clearAudioNotification()
+-    }
+-}
+-
+-const seek = (e) => {
+-    const el = e.currentTarget
+-    const rect = el.getBoundingClientRect()
+-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+-    if (!audio.duration) return
+-    audio.currentTime = percent * audio.duration
+-    emit('seek', percent)
+-}
+-
+-const seekByClientX = (clientX) => {
+-    const el = scrubTrackEl.value
+-    if (!el || !audio.duration) return
+-    const rect = el.getBoundingClientRect()
+-    const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+-    audio.currentTime = percent * audio.duration
+-    emit('seek', percent)
+-}
+-
+-const onScrubMove = (e) => {
+-    if (!isScrubbing.value) return
+-    seekByClientX(e.clientX)
+-}
+-
+-const stopScrub = () => {
+-    if (!isScrubbing.value) return
+-    isScrubbing.value = false
+-    window.removeEventListener('pointermove', onScrubMove)
+-    window.removeEventListener('pointerup', stopScrub)
+-    window.removeEventListener('pointercancel', stopScrub)
+-}
+-
+-const startScrub = (e) => {
+-    if (!audio.duration) return
+-    isScrubbing.value = true
+-    seekByClientX(e.clientX)
+-    window.addEventListener('pointermove', onScrubMove)
+-    window.addEventListener('pointerup', stopScrub)
+-    window.addEventListener('pointercancel', stopScrub)
+-}
+-
+-const seekTo = (percent) => {
+-    if (!audio.duration) return
+-    audio.currentTime = percent * audio.duration
+-}
+-sharedSeekTo.value = seekTo
+-defineExpose({
+-    playAudio,
+-    seekTo,
+-    stopAudio,
+-})
+-watch(() => props.tracks, registerTracks, { immediate: true })
+-/* keep playback running across route changes */
+-onUnmounted(() => {
+-    stopScrub()
+-    // Intentionally do not pause or clear src.
+-})
+-</script>
+-
+-<template>
+-    <div v-if="currentTrack" class="player-bar fixed-bottom">
+-
+-        <!-- SEEK BAR -->
+-        <div ref="scrubTrackEl" class="seek-track" @click="seek" @pointerdown.prevent="startScrub">
+-            <div class="seek-fill" :style="{ width: (progress * 100) + '%' }" />
+-            <div class="seek-thumb" :style="{ left: 'calc(' + (progress * 100) + '% - 5px)' }" />
+-        </div>
+-
+-        <!-- PLAYER INNER -->
+-        <div class="player-inner">
+-
+-            <!-- LEFT: Track Info -->
+-            <div class="track-info">
+-                <div class="track-title ellipsis">
+-                    {{ currentTrack.title || 'Untitled Beat' }}
+-                </div>
+-                <div class="track-status">
+-                    <span class="status-dot" :class="{ paused: !isPlaying }" />
+-                    <span class="status-label">{{ isPlaying ? 'Now Playing' : 'Paused' }}</span>
+-                </div>
+-            </div>
+-
+-            <!-- CENTER: Controls -->
+-            <div class="controls">
+-                <button class="ctrl-btn" :disabled="!hasPrev" aria-label="Previous" @click="playPrev">
+-                    <q-icon name="skip_previous" size="20px" />
+-                </button>
+-
+-                <button class="ctrl-btn play-main" aria-label="Play/Pause" @click="togglePlay">
+-                    <q-icon :name="isPlaying ? 'pause' : 'play_arrow'" size="22px" />
+-                </button>
+-
+-                <button v-if="!isAndroid" class="ctrl-btn stop-btn" aria-label="Stop" @click="stopAudio">
+-                    <q-icon name="stop" size="20px" />
+-                </button>
+-
+-                <button class="ctrl-btn" :disabled="!hasNext" aria-label="Next" @click="playNext">
+-                    <q-icon name="skip_next" size="20px" />
+-                </button>
+-            </div>
+-
+-            <!-- RIGHT: Time + Volume -->
+-            <div class="right-controls">
+-                <div class="time-wrap">
+-                    <span class="time-val current">{{ formatTime(currentTime) }}</span>
+-                    <span class="time-sep">/</span>
+-                    <span class="time-val">{{ formatTime(duration) }}</span>
+-                </div>
+-                <div class="vol-wrap">
+-                    <q-icon name="volume_up" size="15px" class="vol-icon" />
+-                    <input type="range" class="vol-slider" min="0" max="100" value="75" aria-label="Volume" />
+-                </div>
+-            </div>
+-
+-        </div>
+-    </div>
+-</template>
+-<style scoped>
+-.player-bar {
+-    position: fixed;
+-    left: 0;
+-    right: 0;
+-    bottom: 0;
+-    z-index: 9999;
+-    background: rgba(10, 10, 15, 0.98);
+-    border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+-    backdrop-filter: blur(16px);
+-    -webkit-backdrop-filter: blur(16px);
+-    padding-bottom: env(safe-area-inset-bottom, 0px);
+-}
+-
+-.seek-track {
+-    width: 100%;
+-    height: 0.2rem;
+-    background: rgba(255, 255, 255, 0.08);
+-    cursor: pointer;
+-    position: relative;
+-}
+-
+-.seek-track:hover .seek-fill {
+-    background: #a78bfa;
+-}
+-
+-.seek-track:hover .seek-thumb {
+-    opacity: 1;
+-}
+-
+-.seek-fill {
+-    height: 100%;
+-    background: #7c3aed;
+-    transition: width 0.05s linear;
+-    pointer-events: none;
+-}
+-
+-.seek-thumb {
+-    position: absolute;
+-    top: 50%;
+-    transform: translateY(-50%);
+-    width: 0.7rem;
+-    height: 0.7rem;
+-    border-radius: 50%;
+-    background: #a78bfa;
+-    opacity: 0;
+-    pointer-events: none;
+-    transition: left 0.05s linear, opacity 0.15s;
+-}
+-
+-.player-inner {
+-    display: grid;
+-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+-    align-items: center;
+-    padding: 0.55rem 0.75rem 0.65rem;
+-    gap: 0.55rem;
+-}
+-
+-.track-info {
+-    display: flex;
+-    flex-direction: column;
+-    min-width: 0;
+-}
+-
+-.track-title {
+-    font-size: 0.78rem;
+-    font-weight: 600;
+-    color: #e5e7eb;
+-    white-space: nowrap;
+-    overflow: hidden;
+-    text-overflow: ellipsis;
+-}
+-
+-.track-status {
+-    display: flex;
+-    align-items: center;
+-    gap: 0.28rem;
+-    margin-top: 0.14rem;
+-}
+-
+-.status-dot {
+-    width: 0.3rem;
+-    height: 0.3rem;
+-    border-radius: 50%;
+-    background: #7c3aed;
+-    transition: background 0.2s;
+-    flex-shrink: 0;
+-}
+-
+-.status-dot.paused {
+-    background: #4b5563;
+-}
+-
+-.status-label {
+-    font-size: 0.68rem;
+-    color: #6b7280;
+-}
+-
+-.controls {
+-    display: flex;
+-    align-items: center;
+-    gap: 0.6rem;
+-    justify-content: center;
+-}
+-
+-.ctrl-btn {
+-    width: 2.2rem;
+-    height: 2.2rem;
+-    border-radius: 50%;
+-    background: transparent;
+-    border: none;
+-    cursor: pointer;
+-    display: flex;
+-    align-items: center;
+-    justify-content: center;
+-    color: #6b7280;
+-    transition: color 0.15s;
+-    padding: 0;
+-}
+-
+-.ctrl-btn:hover:not(:disabled) {
+-    color: #e5e7eb;
+-}
+-
+-.ctrl-btn:disabled {
+-    opacity: 0.3;
+-    cursor: default;
+-}
+-
+-.stop-btn {
+-    display: none;
+-}
+-
+-.ctrl-btn.play-main {
+-    width: 2.5rem;
+-    height: 2.5rem;
+-    background: #7c3aed;
+-    color: #fff;
+-}
+-
+-.ctrl-btn.play-main:hover {
+-    background: #6d28d9;
+-    transform: scale(1.03);
+-}
+-
+-.right-controls {
+-    display: flex;
+-    align-items: center;
+-    gap: 0.85rem;
+-    justify-content: flex-end;
+-}
+-
+-.time-wrap {
+-    display: flex;
+-    align-items: center;
+-    gap: 0.35rem;
+-}
+-
+-.time-val {
+-    font-size: 0.7rem;
+-    color: #6b7280;
+-    font-variant-numeric: tabular-nums;
+-    min-width: 2rem;
+-}
+-
+-.time-val.current {
+-    color: #a78bfa;
+-    text-align: right;
+-}
+-
+-.time-sep {
+-    font-size: 0.7rem;
+-    color: #374151;
+-}
+-
+-.vol-wrap {
+-    display: flex;
+-    align-items: center;
+-    gap: 0.35rem;
+-}
+-
+-.vol-icon {
+-    color: #4b5563;
+-}
+-
+-.vol-slider {
+-    -webkit-appearance: none;
+-    appearance: none;
+-    width: 4.5rem;
+-    height: 0.2rem;
+-    border-radius: 0.125rem;
+-    background: rgba(255, 255, 255, 0.12);
+-    cursor: pointer;
+-    outline: none;
+-}
+-
+-.vol-slider::-webkit-slider-thumb {
+-    -webkit-appearance: none;
+-    width: 0.7rem;
+-    height: 0.7rem;
+-    border-radius: 50%;
+-    background: #7c3aed;
+-    cursor: pointer;
+-}
+-
+-.vol-slider::-moz-range-thumb {
+-    width: 0.7rem;
+-    height: 0.7rem;
+-    border-radius: 50%;
+-    background: #7c3aed;
+-    border: none;
+-    cursor: pointer;
+-}
+-
+-@media (max-width: 900px) {
+-    .player-inner {
+-        grid-template-columns: minmax(0, 1fr) auto;
+-        height: 56px;
+-        padding: 0 0.85rem;
+-        gap: 0.65rem;
+-    }
+-
+-    .track-info {
+-        align-items: flex-start;
+-        text-align: left;
+-    }
+-
+-    .track-status {
+-        gap: 0.25rem;
+-    }
+-
+-    .controls {
+-        gap: 0.65rem;
+-    }
+-
+-    .ctrl-btn {
+-        width: 2.5rem;
+-        height: 2.5rem;
+-    }
+-
+-    .ctrl-btn.play-main {
+-        width: 2.9rem;
+-        height: 2.9rem;
+-    }
+-
+-    .right-controls {
+-        display: none;
+-    }
+-}
+-
+-@media (max-width: 600px) {
+-    .player-inner {
+-        padding: 0 0.6rem;
+-        gap: 0.45rem;
+-    }
+-
+-    .track-title {
+-        font-size: 0.74rem;
+-        max-width: 92vw;
+-    }
+-
+-    .status-label {
+-        font-size: 0.64rem;
+-    }
+-
+-    .controls {
+-        gap: 0.5rem;
+-    }
+-
+-    .stop-btn {
+-        display: none;
+-    }
+-
+-    .ctrl-btn {
+-        width: 2.35rem;
+-        height: 2.35rem;
+-    }
+-
+-    .ctrl-btn.play-main {
+-        width: 2.7rem;
+-        height: 2.7rem;
+-    }
+-
+-    .seek-track {
+-        height: 0.25rem;
+-    }
+-
+-    .seek-thumb {
+-        width: 0.8rem;
+-        height: 0.8rem;
+-        opacity: 1;
+-    }
+-}
+-</style>
+\ No newline at end of file
+diff --git a/src/components/TaskCard.vue b/src/components/TaskCard.vue
+index 9de447a..0e0105a 100644
+--- a/src/components/TaskCard.vue
++++ b/src/components/TaskCard.vue
+@@ -44,9 +44,6 @@
+                 :disable="!task.status || downloading" :loading="downloading" @click="download" />
+         </div>
+ 
+-        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" preload="none" @timeupdate="onTimeUpdate"
+-            @loadedmetadata="onLoadedMetadata" @play="playing = true" @pause="playing = false" @ended="handleEnded"
+-            class="hidden" />
+     </q-card>
+ </template>
+ 
+@@ -57,10 +54,22 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
+ import { useQuasar } from 'quasar'
+ import { getApiPath } from 'boot/api-config'
+ import { useCartStore } from 'src/stores/cart'
++import {
++    sharedCurrentId,
++    sharedIsPlaying,
++    sharedCurrentTime,
++    sharedDuration,
++    sharedPlayAudio,
++} from 'src/services/audio-player-state'
+ 
+ const $q = useQuasar()
+ const cart = useCartStore()
+ 
++// Tasks share the same numeric id space as other entities (music tracks,
++// etc.), so this card's "now playing" id is namespaced to avoid colliding
++// with a track that happens to have the same numeric id.
++const PLAYER_ID_PREFIX = 'task-'
++
+ const ANDROID_DOWNLOAD_DIR = 'Download'
+ 
+ const props = defineProps({ task: { type: Object, required: true } })
+@@ -103,11 +112,12 @@ const normalizeAbsoluteUrlForDownload = (url) => {
+ 
+ const mediaUrl = computed(() => normalizeAbsoluteUrlForDownload(getSrc(props.task)))
+ 
+-const audioEl = ref(null)
+-const playing = ref(false)
++const playerId = computed(() => `${PLAYER_ID_PREFIX}${props.task.id}`)
++const isThisTrack = computed(() => sharedCurrentId.value === playerId.value)
++const playing = computed(() => isThisTrack.value && sharedIsPlaying.value)
++const currentTime = computed(() => isThisTrack.value ? sharedCurrentTime.value : 0)
++const duration = computed(() => isThisTrack.value ? sharedDuration.value : 0)
+ const downloading = ref(false)
+-const currentTime = ref(0)
+-const duration = ref(0)
+ 
+ const isAudio = computed(() => ['beat', 'recording'].includes(props.task.service_type))
+ 
+@@ -156,41 +166,13 @@ function addToCart() {
+ //     return `${minutes}:${seconds}`
+ // }
+ 
+-function onLoadedMetadata() {
+-    duration.value = audioEl.value?.duration || 0
+-}
+-
+-function onTimeUpdate() {
+-    currentTime.value = audioEl.value?.currentTime || 0
+-}
+-
+-// function seekTo(value) {
+-//     if (!audioEl.value || !Number.isFinite(value)) return
+-//     const max = duration.value || audioEl.value.duration || 0
+-//     const clamped = Math.min(Math.max(value, 0), max)
+-//     audioEl.value.currentTime = clamped
+-//     currentTime.value = clamped
+-// }
+-
+-function handleEnded() {
+-    playing.value = false
+-    currentTime.value = 0
+-}
+-
+-async function togglePlay() {
+-    if (!audioEl.value) return
+-    if (playing.value) {
+-        audioEl.value.pause()
+-        playing.value = false
+-    } else {
+-        try {
+-            await audioEl.value.play()
+-            playing.value = true
+-        } catch (e) {
+-            console.error('Playback failed', e)
+-            playing.value = false
+-        }
+-    }
++function togglePlay() {
++    if (!mediaUrl.value) return
++    sharedPlayAudio.value?.({
++        id: playerId.value,
++        title: props.task.title,
++        file_src: mediaUrl.value,
++    })
+ }
+ 
+ function isNativeAndroid() {
+diff --git a/src/composables/useAudioPlayer.js b/src/composables/useAudioPlayer.js
+deleted file mode 100644
+index 9b31262..0000000
+--- a/src/composables/useAudioPlayer.js
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// eslint-disable-next-line no-unused-vars
+-import { ref, computed, watch } from 'vue'
+-
+-export function useAudioPlayer() {
+-    let audio = null
+-    const currentId = ref(null)
+-    const isPlaying = ref(false)
+-    const progress = ref(0)
+-    const currentTime = ref(0)
+-
+-    const initializeAudio = (trackId, fileSource) => {
+-        if (currentId.value !== trackId) {
+-            if (audio) {
+-                audio.pause()
+-                audio = null
+-            }
+-            audio = new Audio(fileSource)
+-            currentId.value = trackId
+-
+-            audio.addEventListener('timeupdate', () => {
+-                currentTime.value = audio.currentTime
+-                progress.value = audio.duration ? audio.currentTime / audio.duration : 0
+-            })
+-
+-            audio.addEventListener('ended', () => {
+-                isPlaying.value = false
+-                progress.value = 0
+-                currentTime.value = 0
+-            })
+-        }
+-    }
+-
+-    const togglePlay = (trackId, fileSource) => {
+-        if (!fileSource) return
+-
+-        initializeAudio(trackId, fileSource)
+-
+-        if (isPlaying.value) {
+-            audio.pause()
+-            isPlaying.value = false
+-        } else {
+-            audio.play()
+-            isPlaying.value = true
+-        }
+-    }
+-
+-    const seekTrack = (trackId, event) => {
+-        if (!audio || currentId.value !== trackId) return
+-        const rect = event.currentTarget.getBoundingClientRect()
+-        const ratio = (event.clientX - rect.left) / rect.width
+-        audio.currentTime = ratio * (audio.duration || 0)
+-    }
+-
+-    const stopAudio = () => {
+-        if (audio) {
+-            audio.pause()
+-            audio = null
+-        }
+-        isPlaying.value = false
+-        currentId.value = null
+-        progress.value = 0
+-        currentTime.value = 0
+-    }
+-
+-    const cleanup = () => {
+-        if (audio) audio.pause()
+-    }
+-
+-    return {
+-        currentId,
+-        isPlaying,
+-        progress,
+-        currentTime,
+-        togglePlay,
+-        seekTrack,
+-        stopAudio,
+-        cleanup,
+-    }
+-}
+diff --git a/src/pages/DownloadsPage.vue b/src/pages/DownloadsPage.vue
+index 043d09d..f6b0bf0 100644
+--- a/src/pages/DownloadsPage.vue
++++ b/src/pages/DownloadsPage.vue
+@@ -1,10 +1,18 @@
+ <script setup>
+-import { computed, onMounted, onUnmounted, ref } from 'vue'
++import { computed, onMounted, ref } from 'vue'
+ import { useQuasar } from 'quasar'
+ import { Capacitor } from '@capacitor/core'
+ import { Directory, Filesystem } from '@capacitor/filesystem'
+ import { ApiService } from 'src/services/api'
+ import { useNotificationsStore } from 'src/stores/notifications'
++import {
++    sharedCurrentId,
++    sharedIsPlaying,
++    sharedCurrentTime,
++    sharedDuration,
++    sharedPlayAudio,
++    sharedSeekTo,
++} from 'src/services/audio-player-state'
+ 
+ const $q = useQuasar()
+ const notifications = useNotificationsStore()
+@@ -14,11 +22,14 @@ const downloadProgress = ref({})
+ const downloads = ref([])
+ const search = ref('')
+ 
+-const audio = new Audio()
+-const currentId = ref(null)
+-const isPlaying = ref(false)
+-const currentTime = ref(0)
+-const duration = ref(0)
++// Shared session player state — this page plays through the same single
++// player as everywhere else, keyed by music_id (which is the same id
++// used for this track everywhere in the catalog, so "now playing" stays
++// in sync between here and IndexPage/SongDetails too).
++const currentId = sharedCurrentId
++const isPlaying = sharedIsPlaying
++const currentTime = sharedCurrentTime
++const duration = sharedDuration
+ const loadingPlayMusicId = ref(null)
+ const playbackUrls = ref({})
+ const ANDROID_DOWNLOAD_DIR = 'Download/Wavecraft Store'
+@@ -265,24 +276,16 @@ const playTrack = async (item) => {
+     loadingPlayMusicId.value = item.music_id
+ 
+     try {
+-        if (currentId.value === item.music_id) {
+-            if (isPlaying.value) {
+-                audio.pause()
+-                isPlaying.value = false
+-            } else {
+-                await audio.play()
+-                isPlaying.value = true
+-            }
+-            return
+-        }
+-
++        // Always resolve first (this is cheap once cached — see
++        // getPlaybackUrl's playbackUrls cache) and let the shared player
++        // decide whether that's a fresh load or just a pause/resume toggle
++        // on the track that's already current.
+         const src = await getPlaybackUrl(item)
+-        audio.src = src
+-        currentId.value = item.music_id
+-        currentTime.value = 0
+-        duration.value = 0
+-        await audio.play()
+-        isPlaying.value = true
++        sharedPlayAudio.value?.({
++            id: item.music_id,
++            title: item.title,
++            file_src: src,
++        })
+     } catch (error) {
+         console.error(error)
+         $q.notify({
+@@ -299,7 +302,7 @@ const seekTrack = (item, event) => {
+ 
+     const rect = event.currentTarget.getBoundingClientRect()
+     const percent = (event.clientX - rect.left) / rect.width
+-    audio.currentTime = Math.max(0, Math.min(1, percent)) * duration.value
++    sharedSeekTo.value?.(Math.max(0, Math.min(1, percent)))
+ }
+ 
+ const filenameFromHeader = (headerValue) => {
+@@ -378,31 +381,13 @@ const downloadTrack = async (item) => {
+     }
+ }
+ 
+-audio.ontimeupdate = () => {
+-    currentTime.value = audio.currentTime || 0
+-    duration.value = audio.duration || 0
+-}
+-
+-audio.onplay = () => {
+-    isPlaying.value = true
+-}
+-
+-audio.onpause = () => {
+-    isPlaying.value = false
+-}
+-
+-audio.onended = () => {
+-    isPlaying.value = false
+-}
+-
+-onUnmounted(() => {
+-    audio.pause()
+-    audio.src = ''
+-
+-    Object.values(playbackUrls.value).forEach((url) => {
+-        URL.revokeObjectURL(url)
+-    })
+-})
++// No local <audio> handlers or onUnmounted teardown here anymore — the
++// shared player (AudioPlayer.vue) owns the actual playback engine and is
++// meant to keep playing across route changes, so this page must not pause
++// or revoke the blob URL it's currently using just because you navigated
++// away. Cached blob URLs for tracks you're not currently playing still get
++// created fresh next time (getPlaybackUrl re-fetches if the cache entry is
++// gone), so the minor per-session memory cost is acceptable.
+ 
+ onMounted(fetchDownloads)
+ </script>
+diff --git a/src/pages/SongDetails.vue b/src/pages/SongDetails.vue
+index fd209a9..2ff15c9 100644
+--- a/src/pages/SongDetails.vue
++++ b/src/pages/SongDetails.vue
+@@ -141,13 +141,21 @@
+ </template>
+ 
+ <script setup>
+-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
++import { ref, onMounted, watch, computed } from 'vue'
+ import { useRoute } from 'vue-router'
+ import { useQuasar, useMeta } from 'quasar'
+ import { ApiService } from 'src/services/api'
+ import { useCartStore } from 'src/stores/cart'
+ import { useNotificationsStore } from 'src/stores/notifications'
+-import { useAudioPlayer } from 'src/composables/useAudioPlayer'
++import {
++    sharedCurrentId,
++    sharedIsPlaying,
++    sharedProgress,
++    sharedCurrentTime,
++    sharedPlayAudio,
++    sharedSeekTo,
++    sharedStopAudio,
++} from 'src/services/audio-player-state'
+ import { useTrackDownload } from 'src/composables/useTrackDownload'
+ import { Capacitor } from '@capacitor/core'
+ import { buildTrackSlug, parseTrackSlug } from 'src/utils/track-slug'
+@@ -198,10 +206,25 @@ useMeta(() => ({
+         },
+     },
+ }))
+-// Audio player composable
++// Shared session player — reads/writes the same state IndexPage,
++// DownloadsPage and TaskCard use, so this page reflects whatever is
++// actually playing rather than owning its own Audio() instance.
++const isCurrentTrack = computed(() => track.value && sharedCurrentId.value === track.value.id)
++const isPlaying = computed(() => isCurrentTrack.value && sharedIsPlaying.value)
++const progress = computed(() => isCurrentTrack.value ? sharedProgress.value : 0)
++const currentTime = computed(() => isCurrentTrack.value ? sharedCurrentTime.value : 0)
++
++function togglePlay() {
++    if (!track.value) return
++    sharedPlayAudio.value?.(track.value)
++}
+ 
+-const { isPlaying, progress, currentTime, togglePlay, seekTrack, stopAudio, cleanup } =
+-    useAudioPlayer()
++function seekTrack(trackId, e) {
++    if (!isCurrentTrack.value) return
++    const rect = e.currentTarget.getBoundingClientRect()
++    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
++    sharedSeekTo.value?.(percent)
++}
+ 
+ // Download composable
+ const {
+@@ -399,7 +422,7 @@ function addTrackToCart(track) {
+ watch(
+     () => route.params.slug,
+     () => {
+-        stopAudio()
++        sharedStopAudio.value?.()
+         fetchTrack()
+     }
+ )
+@@ -408,9 +431,8 @@ onMounted(async () => {
+     await fetchTrack()
+ })
+ 
+-onBeforeUnmount(() => {
+-    cleanup()
+-})
++// Deliberately no onBeforeUnmount stopAudio()/cleanup() here — the shared
++// player is meant to keep playing when you navigate away from this page.
+ </script>
+ 
+ <style scoped>
+diff --git a/src/services/audio-engine.js b/src/services/audio-engine.js
+new file mode 100644
+index 0000000..a072575
+--- /dev/null
++++ b/src/services/audio-engine.js
+@@ -0,0 +1,107 @@
++import { Capacitor } from '@capacitor/core'
++import { registerPlugin } from '@capacitor/core'
++
++// Native Capacitor plugin implemented in
++// src-capacitor/android/app/src/main/java/com/streama/app/ExoAudioPlugin.java
++// It's registered here unconditionally (cheap/no-op on web and iOS) so the
++// import graph doesn't need platform-specific branches.
++const ExoAudioPlayer = registerPlugin('ExoAudioPlayer')
++
++/**
++ * Both engines expose the same shape:
++ *   load(src)        -> Promise<void>   loads a new source, does not start playback
++ *   play()            -> Promise<void>
++ *   pause()           -> Promise<void> | void
++ *   seekTo(percent)   -> void            percent is 0..1 of duration
++ *   stop()            -> void            pause + reset position + clear source
++ *
++ * And they report state back exclusively through the callbacks passed in —
++ * AudioPlayer.vue never reaches into either engine's internals.
++ */
++export function createAudioEngine({ onTimeUpdate, onLoadedMetadata, onEnded, onPlayState }) {
++    const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
++
++    return isAndroidNative
++        ? createNativeExoEngine({ onTimeUpdate, onLoadedMetadata, onEnded, onPlayState })
++        : createWebAudioEngine({ onTimeUpdate, onLoadedMetadata, onEnded, onPlayState })
++}
++
++function createWebAudioEngine({ onTimeUpdate, onLoadedMetadata, onEnded, onPlayState }) {
++    const audio = new Audio()
++
++    audio.ontimeupdate = () => {
++        if (audio.duration) {
++            onTimeUpdate({
++                currentTime: audio.currentTime,
++                duration: audio.duration,
++                progress: audio.currentTime / audio.duration,
++            })
++        }
++    }
++    audio.onloadedmetadata = () => onLoadedMetadata(audio.duration)
++    audio.onended = () => onEnded()
++    audio.onplay = () => onPlayState(true)
++    audio.onpause = () => onPlayState(false)
++
++    return {
++        async load(src) {
++            audio.src = src
++        },
++        async play() {
++            await audio.play()
++        },
++        async pause() {
++            audio.pause()
++        },
++        seekTo(percent) {
++            if (!audio.duration) return
++            audio.currentTime = percent * audio.duration
++        },
++        stop() {
++            audio.pause()
++            audio.currentTime = 0
++            audio.src = ''
++        },
++    }
++}
++
++function createNativeExoEngine({ onTimeUpdate, onLoadedMetadata, onEnded, onPlayState }) {
++    let lastDuration = 0
++
++    // Payloads match ExoAudioPlugin.java's notifyListeners(...) calls.
++    ExoAudioPlayer.addListener('progress', ({ currentTime = 0, duration = 0 }) => {
++        lastDuration = duration || lastDuration
++        onTimeUpdate({
++            currentTime,
++            duration,
++            progress: duration ? currentTime / duration : 0,
++        })
++    })
++
++    ExoAudioPlayer.addListener('loaded', ({ duration = 0 }) => {
++        lastDuration = duration
++        onLoadedMetadata(duration)
++    })
++
++    ExoAudioPlayer.addListener('ended', () => onEnded())
++    ExoAudioPlayer.addListener('playState', ({ isPlaying }) => onPlayState(!!isPlaying))
++
++    return {
++        async load(src) {
++            lastDuration = 0
++            await ExoAudioPlayer.load({ src })
++        },
++        async play() {
++            await ExoAudioPlayer.play()
++        },
++        async pause() {
++            await ExoAudioPlayer.pause()
++        },
++        seekTo(percent) {
++            ExoAudioPlayer.seekTo({ percent })
++        },
++        stop() {
++            ExoAudioPlayer.stop()
++        },
++    }
++}
+diff --git a/src/services/audio-player-state.js b/src/services/audio-player-state.js
+index 39f56c0..b203a4b 100644
+--- a/src/services/audio-player-state.js
++++ b/src/services/audio-player-state.js
+@@ -1,13 +1,27 @@
+ import { ref } from 'vue'
+ 
++// Single source of truth for the app-wide "session" audio player.
++// Every page (IndexPage, SongDetails, DownloadsPage, TaskCard/TasksPage)
++// reads/writes these refs instead of owning its own Audio() instance, so
++// there is exactly one track playing at a time no matter which page you're
++// looking at. AudioPlayer.vue (mounted once, in MainLayout.vue) is the only
++// place that ever calls the underlying playback engine directly.
++
+ export const sharedTracks = ref([])
+ export const sharedCurrentId = ref(null)
+ export const sharedIsPlaying = ref(false)
++export const sharedIsLoading = ref(false)
++export const sharedProgress = ref(0)
++export const sharedCurrentTime = ref(0)
++export const sharedDuration = ref(0)
++
++// Function refs published by AudioPlayer.vue once it mounts. Callers should
++// always use optional chaining (sharedPlayAudio.value?.(track)) since these
++// are null until the mini-player has mounted.
+ export const sharedPlayAudio = ref(null)
+ export const sharedSeekTo = ref(null)
+-export const sharedProgress = ref(0)
++export const sharedStopAudio = ref(null)
+ 
+ export const registerTracks = (tracks) => {
+     sharedTracks.value = Array.isArray(tracks) ? tracks : []
+ }
+-

@@ -1,10 +1,18 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { Capacitor } from '@capacitor/core'
 import { Directory, Filesystem } from '@capacitor/filesystem'
 import { ApiService } from 'src/services/api'
 import { useNotificationsStore } from 'src/stores/notifications'
+import {
+    sharedCurrentId,
+    sharedIsPlaying,
+    sharedCurrentTime,
+    sharedDuration,
+    sharedPlayAudio,
+    sharedSeekTo,
+} from 'src/services/audio-player-state'
 
 const $q = useQuasar()
 const notifications = useNotificationsStore()
@@ -14,11 +22,14 @@ const downloadProgress = ref({})
 const downloads = ref([])
 const search = ref('')
 
-const audio = new Audio()
-const currentId = ref(null)
-const isPlaying = ref(false)
-const currentTime = ref(0)
-const duration = ref(0)
+// Shared session player state — this page plays through the same single
+// player as everywhere else, keyed by music_id (which is the same id
+// used for this track everywhere in the catalog, so "now playing" stays
+// in sync between here and IndexPage/SongDetails too).
+const currentId = sharedCurrentId
+const isPlaying = sharedIsPlaying
+const currentTime = sharedCurrentTime
+const duration = sharedDuration
 const loadingPlayMusicId = ref(null)
 const playbackUrls = ref({})
 const ANDROID_DOWNLOAD_DIR = 'Download/Wavecraft Store'
@@ -265,24 +276,16 @@ const playTrack = async (item) => {
     loadingPlayMusicId.value = item.music_id
 
     try {
-        if (currentId.value === item.music_id) {
-            if (isPlaying.value) {
-                audio.pause()
-                isPlaying.value = false
-            } else {
-                await audio.play()
-                isPlaying.value = true
-            }
-            return
-        }
-
+        // Always resolve first (this is cheap once cached — see
+        // getPlaybackUrl's playbackUrls cache) and let the shared player
+        // decide whether that's a fresh load or just a pause/resume toggle
+        // on the track that's already current.
         const src = await getPlaybackUrl(item)
-        audio.src = src
-        currentId.value = item.music_id
-        currentTime.value = 0
-        duration.value = 0
-        await audio.play()
-        isPlaying.value = true
+        sharedPlayAudio.value?.({
+            id: item.music_id,
+            title: item.title,
+            file_src: src,
+        })
     } catch (error) {
         console.error(error)
         $q.notify({
@@ -299,7 +302,7 @@ const seekTrack = (item, event) => {
 
     const rect = event.currentTarget.getBoundingClientRect()
     const percent = (event.clientX - rect.left) / rect.width
-    audio.currentTime = Math.max(0, Math.min(1, percent)) * duration.value
+    sharedSeekTo.value?.(Math.max(0, Math.min(1, percent)))
 }
 
 const filenameFromHeader = (headerValue) => {
@@ -378,31 +381,13 @@ const downloadTrack = async (item) => {
     }
 }
 
-audio.ontimeupdate = () => {
-    currentTime.value = audio.currentTime || 0
-    duration.value = audio.duration || 0
-}
-
-audio.onplay = () => {
-    isPlaying.value = true
-}
-
-audio.onpause = () => {
-    isPlaying.value = false
-}
-
-audio.onended = () => {
-    isPlaying.value = false
-}
-
-onUnmounted(() => {
-    audio.pause()
-    audio.src = ''
-
-    Object.values(playbackUrls.value).forEach((url) => {
-        URL.revokeObjectURL(url)
-    })
-})
+// No local <audio> handlers or onUnmounted teardown here anymore — the
+// shared player (AudioPlayer.vue) owns the actual playback engine and is
+// meant to keep playing across route changes, so this page must not pause
+// or revoke the blob URL it's currently using just because you navigated
+// away. Cached blob URLs for tracks you're not currently playing still get
+// created fresh next time (getPlaybackUrl re-fetches if the cache entry is
+// gone), so the minor per-session memory cost is acceptable.
 
 onMounted(fetchDownloads)
 </script>

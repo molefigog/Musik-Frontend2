@@ -49,6 +49,11 @@ dependencies {
     // https://github.com/paypal/paypal-android/releases for the current version
     implementation 'com.paypal.android:card-payments:2.3.0'
     implementation 'com.paypal.android:paypal-web-payments:2.3.0'
+
+    // ExoPlayer (custom ExoAudioPlugin) — check
+    // https://developer.android.com/media/media3/exoplayer/hello-world for the current version
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-common:1.4.1'
 }
 
 apply from: 'capacitor.build.gradle'

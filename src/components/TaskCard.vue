@@ -44,9 +44,6 @@
                 :disable="!task.status || downloading" :loading="downloading" @click="download" />
         </div>
 
-        <audio v-if="isAudio" ref="audioEl" :src="mediaUrl" preload="none" @timeupdate="onTimeUpdate"
-            @loadedmetadata="onLoadedMetadata" @play="playing = true" @pause="playing = false" @ended="handleEnded"
-            class="hidden" />
     </q-card>
 </template>
 
@@ -57,9 +54,21 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { useQuasar } from 'quasar'
 import { getApiPath } from 'boot/api-config'
 import { useCartStore } from 'src/stores/cart'
+import {
+    sharedCurrentId,
+    sharedIsPlaying,
+    sharedCurrentTime,
+    sharedDuration,
+    sharedPlayAudio,
+} from 'src/services/audio-player-state'
 
 const $q = useQuasar()
 const cart = useCartStore()
+
+// Tasks share the same numeric id space as other entities (music tracks,
+// etc.), so this card's "now playing" id is namespaced to avoid colliding
+// with a track that happens to have the same numeric id.
+const PLAYER_ID_PREFIX = 'task-'
 
 const ANDROID_DOWNLOAD_DIR = 'Download'
 
@@ -103,11 +112,12 @@ const normalizeAbsoluteUrlForDownload = (url) => {
 
 const mediaUrl = computed(() => normalizeAbsoluteUrlForDownload(getSrc(props.task)))
 
-const audioEl = ref(null)
-const playing = ref(false)
+const playerId = computed(() => `${PLAYER_ID_PREFIX}${props.task.id}`)
+const isThisTrack = computed(() => sharedCurrentId.value === playerId.value)
+const playing = computed(() => isThisTrack.value && sharedIsPlaying.value)
+const currentTime = computed(() => isThisTrack.value ? sharedCurrentTime.value : 0)
+const duration = computed(() => isThisTrack.value ? sharedDuration.value : 0)
 const downloading = ref(false)
-const currentTime = ref(0)
-const duration = ref(0)
 
 const isAudio = computed(() => ['beat', 'recording'].includes(props.task.service_type))
 
@@ -156,41 +166,13 @@ function addToCart() {
 //     return `${minutes}:${seconds}`
 // }
 
-function onLoadedMetadata() {
-    duration.value = audioEl.value?.duration || 0
-}
-
-function onTimeUpdate() {
-    currentTime.value = audioEl.value?.currentTime || 0
-}
-
-// function seekTo(value) {
-//     if (!audioEl.value || !Number.isFinite(value)) return
-//     const max = duration.value || audioEl.value.duration || 0
-//     const clamped = Math.min(Math.max(value, 0), max)
-//     audioEl.value.currentTime = clamped
-//     currentTime.value = clamped
-// }
-
-function handleEnded() {
-    playing.value = false
-    currentTime.value = 0
-}
-
-async function togglePlay() {
-    if (!audioEl.value) return
-    if (playing.value) {
-        audioEl.value.pause()
-        playing.value = false
-    } else {
-        try {
-            await audioEl.value.play()
-            playing.value = true
-        } catch (e) {
-            console.error('Playback failed', e)
-            playing.value = false
-        }
-    }
+function togglePlay() {
+    if (!mediaUrl.value) return
+    sharedPlayAudio.value?.({
+        id: playerId.value,
+        title: props.task.title,
+        file_src: mediaUrl.value,
+    })
 }
 
 function isNativeAndroid() {

@@ -3,7 +3,6 @@
         <div class="login-wrapper">
             <q-card flat bordered class="glass-card overflow-hidden">
 
-
                 <!-- RIGHT SIDE -->
                 <div class="col-12 col-md-7">
                     <div class="q-pa-lg q-pa-xl-md">
@@ -20,28 +19,28 @@
 
                         <q-form class="q-gutter-md" @submit="onLogin">
 
-                            <q-input v-model="form.email" label="Email" dark outlined class="glass-input"
+                            <q-input v-model="form.email" label="Email" outlined class="glass-input"
                                 :rules="[val => !!val || 'Username is required']" :error="!!fieldErrors.email"
                                 :error-message="fieldErrors.email">
                                 <template v-slot:prepend>
-                                    <q-icon name="person" color="white" />
+                                    <q-icon name="person" class="glass-icon" />
                                 </template>
                             </q-input>
 
-                            <q-input v-model="form.password" label="Password" dark outlined class="glass-input"
+                            <q-input v-model="form.password" label="Password" outlined class="glass-input"
                                 :type="isPwd ? 'password' : 'text'" :rules="[val => !!val || 'Password is required']"
                                 :error="!!fieldErrors.password" :error-message="fieldErrors.password">
                                 <template v-slot:prepend>
-                                    <q-icon name="lock" color="white" />
+                                    <q-icon name="lock" class="glass-icon" />
                                 </template>
 
                                 <template v-slot:append>
-                                    <q-icon :name="isPwd ? 'visibility_off' : 'visibility'" class="cursor-pointer"
-                                        color="white" @click="isPwd = !isPwd" />
+                                    <q-icon :name="isPwd ? 'visibility_off' : 'visibility'"
+                                        class="cursor-pointer glass-icon" @click="isPwd = !isPwd" />
                                 </template>
                             </q-input>
 
-                            <div v-if="fieldErrors.general" class="glass-error text-white q-pa-md">
+                            <div v-if="fieldErrors.general" class="glass-error q-pa-md">
                                 {{ fieldErrors.general }}
                             </div>
 
@@ -63,7 +62,6 @@
                     </div>
                 </div>
 
-
             </q-card>
         </div>
     </q-page>
@@ -77,7 +75,7 @@ import { useQuasar } from 'quasar'
 import { Browser } from '@capacitor/browser'
 import { App } from '@capacitor/app'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { ApiService } from 'src/services/api'
+
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -144,12 +142,12 @@ const onLogin = async () => {
     }
 }
 
-
-const authStore = useAuthStore()
 let googleListener = null
 
+import { getApiPath } from 'boot/api-config'
+
 async function loginWithGoogle() {
-    await Browser.open({ url: `${ApiService.defaults.baseURL}/auth/google/redirect` })
+    await Browser.open({ url: `${getApiPath()}auth/google/redirect` })
 }
 
 async function handleGoogleUrlOpen(event) {
@@ -160,11 +158,11 @@ async function handleGoogleUrlOpen(event) {
     const token = new URL(url).searchParams.get('token')
     if (!token) return
 
-    authStore.token = token
+    auth.token = token
     localStorage.setItem('token', token)
-    await authStore.fetchUser()
-    await authStore.registerDevice()
-    // navigate to dashboard here
+    await auth.fetchUser()
+    await auth.registerDevice()
+    await router.replace(getIntendedRoute())
 }
 
 onMounted(async () => {
@@ -174,3 +172,95 @@ onBeforeUnmount(() => {
     googleListener?.remove()
 })
 </script>
+
+<style lang="scss" scoped>
+.login-page {
+    min-height: 100vh;
+    background: var(--app-bg-page);
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 480px;
+}
+
+.title {
+    color: var(--app-text-primary);
+    font-weight: 700;
+}
+
+.subtitle {
+    color: var(--app-text-secondary);
+}
+
+.link-btn {
+    color: var(--q-primary);
+}
+
+.glass-icon {
+    color: var(--app-text-secondary);
+}
+
+.glass-error {
+    background: rgba(193, 0, 21, 0.12);
+    border: 1px solid rgba(193, 0, 21, 0.3);
+    color: var(--app-text-primary);
+    border-radius: 8px;
+}
+
+.glass-btn {
+    background: var(--q-primary);
+    color: #ffffff;
+}
+
+.glass-btn-secondary {
+    background: var(--app-surface);
+    color: var(--app-text-primary);
+    border: 1px solid var(--app-border);
+}
+
+// Input theming — light and dark need different glass treatments,
+// so these live off the body classes rather than being forced via `dark` prop
+:deep(.glass-input) {
+    .q-field__control {
+        color: var(--app-text-primary);
+    }
+
+    .q-field__label,
+    .q-field__native,
+    input {
+        color: var(--app-text-primary);
+    }
+
+    .q-field__label {
+        color: var(--app-text-secondary);
+    }
+}
+
+.body--light .glass-card {
+    background: var(--app-surface-elevated);
+    border: 1px solid var(--app-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+.body--light :deep(.glass-input) {
+    .q-field__control:before {
+        border-color: var(--app-border);
+    }
+}
+
+.body--dark .glass-card {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.body--dark :deep(.glass-input) {
+    .q-field__control:before {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+}
+</style>

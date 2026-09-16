@@ -141,13 +141,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar, useMeta } from 'quasar'
 import { ApiService } from 'src/services/api'
 import { useCartStore } from 'src/stores/cart'
 import { useNotificationsStore } from 'src/stores/notifications'
-import { useAudioPlayer } from 'src/composables/useAudioPlayer'
+import {
+    sharedCurrentId,
+    sharedIsPlaying,
+    sharedProgress,
+    sharedCurrentTime,
+    sharedPlayAudio,
+    sharedSeekTo,
+    sharedStopAudio,
+} from 'src/services/audio-player-state'
 import { useTrackDownload } from 'src/composables/useTrackDownload'
 import { Capacitor } from '@capacitor/core'
 import { buildTrackSlug, parseTrackSlug } from 'src/utils/track-slug'
@@ -198,10 +206,25 @@ useMeta(() => ({
         },
     },
 }))
-// Audio player composable
+// Shared session player — reads/writes the same state IndexPage,
+// DownloadsPage and TaskCard use, so this page reflects whatever is
+// actually playing rather than owning its own Audio() instance.
+const isCurrentTrack = computed(() => track.value && sharedCurrentId.value === track.value.id)
+const isPlaying = computed(() => isCurrentTrack.value && sharedIsPlaying.value)
+const progress = computed(() => isCurrentTrack.value ? sharedProgress.value : 0)
+const currentTime = computed(() => isCurrentTrack.value ? sharedCurrentTime.value : 0)
 
-const { isPlaying, progress, currentTime, togglePlay, seekTrack, stopAudio, cleanup } =
-    useAudioPlayer()
+function togglePlay() {
+    if (!track.value) return
+    sharedPlayAudio.value?.(track.value)
+}
+
+function seekTrack(trackId, e) {
+    if (!isCurrentTrack.value) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    sharedSeekTo.value?.(percent)
+}
 
 // Download composable
 const {
@@ -399,7 +422,7 @@ function addTrackToCart(track) {
 watch(
     () => route.params.slug,
     () => {
-        stopAudio()
+        sharedStopAudio.value?.()
         fetchTrack()
     }
 )
@@ -408,9 +431,8 @@ onMounted(async () => {
     await fetchTrack()
 })
 
-onBeforeUnmount(() => {
-    cleanup()
-})
+// Deliberately no onBeforeUnmount stopAudio()/cleanup() here — the shared
+// player is meant to keep playing when you navigate away from this page.
 </script>
 
 <style scoped>

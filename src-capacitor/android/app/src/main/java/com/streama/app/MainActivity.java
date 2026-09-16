@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(TorchPlugin.class);
         registerPlugin(PayPalCardPlugin.class);
         registerPlugin(PayPalWebPlugin.class);
+        registerPlugin(ExoAudioPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

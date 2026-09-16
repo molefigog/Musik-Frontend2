@@ -11,16 +11,15 @@ import {
     sharedIsPlaying,
     sharedPlayAudio,
     sharedSeekTo,
+    sharedStopAudio,
     sharedTracks,
     sharedProgress,
+    sharedCurrentTime,
+    sharedDuration,
+    sharedIsLoading,
     registerTracks,
 } from 'src/services/audio-player-state'
-
-// Keep one audio instance and playback state for the lifetime of the app module.
-const sharedAudio = new Audio()
-const sharedDuration = ref(0)
-const sharedCurrentTime = ref(0)
-const sharedIsLoading = ref(false)
+import { createAudioEngine } from 'src/services/audio-engine'
 
 const props = defineProps({
     tracks: {
@@ -29,7 +28,6 @@ const props = defineProps({
     }
 })
 
-const audio = sharedAudio
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
 const currentId = sharedCurrentId
@@ -56,7 +54,10 @@ const emit = defineEmits([
 
 const getSrc = (track) => {
     if (!track?.file_src) return ''
-    if (track.file_src.startsWith('http')) return track.file_src
+    // Already-resolved sources (public URLs, or blob:/data: URLs built by a
+    // caller that needed to fetch an authenticated file first) pass through
+    // untouched. Everything else is treated as a storage-relative path.
+    if (/^(https?:|blob:|data:)/.test(track.file_src)) return track.file_src
     return `${import.meta.env.VITE_API_BASE_URL}/storage/${track.file_src}`
 }
 
@@ -83,6 +84,36 @@ const formatTime = (sec) => {
     return `${m}:${s < 10 ? '0' : ''}${s}`
 }
 
+// One playback engine for the lifetime of the app module: HTML5 <audio> on
+// web, the native ExoAudioPlayer Capacitor plugin on Android. Both report
+// back through this same set of callbacks, which just write into the
+// shared refs — nothing downstream needs to know which engine is active.
+const engine = createAudioEngine({
+    onTimeUpdate: ({ currentTime: ct, duration: d, progress: p }) => {
+        currentTime.value = ct
+        duration.value = d
+        progress.value = p
+        emit('progress', p)
+    },
+    onLoadedMetadata: (d) => {
+        duration.value = d
+    },
+    onEnded: () => {
+        if (hasNext.value) {
+            playNext()
+        } else {
+            isPlaying.value = false
+            progress.value = 0
+            currentTime.value = 0
+            currentId.value = null
+            clearAudioNotification()
+        }
+    },
+    onPlayState: (playing) => {
+        isPlaying.value = playing
+    },
+})
+
 const playAudio = async (track) => {
     const src = getSrc(track)
     if (!src) return
@@ -93,11 +124,14 @@ const playAudio = async (track) => {
     }
 
     isLoading.value = true
-    audio.src = src
-    currentId.value = track.id
+    currentTime.value = 0
+    duration.value = 0
+    progress.value = 0
 
     try {
-        await audio.play()
+        await engine.load(src)
+        currentId.value = track.id
+        await engine.play()
         isPlaying.value = true
         showAudioNotification({ title: track.title, isPlaying: true })
         emit('update:playing', true)
@@ -111,10 +145,10 @@ const playAudio = async (track) => {
 
 const togglePlay = async () => {
     if (isPlaying.value) {
-        audio.pause()
+        await engine.pause()
         isPlaying.value = false
     } else {
-        await audio.play()
+        await engine.play()
         isPlaying.value = true
     }
 
@@ -126,16 +160,17 @@ const togglePlay = async () => {
 }
 
 const stopAudio = () => {
-    audio.pause()
-    audio.currentTime = 0
+    engine.stop()
     isPlaying.value = false
     progress.value = 0
     currentTime.value = 0
+    duration.value = 0
     currentId.value = null
     clearAudioNotification()
 }
 
 sharedPlayAudio.value = playAudio
+sharedStopAudio.value = stopAudio
 
 setAudioNotificationActionHandler((actionId) => {
     if (actionId === 'toggle') togglePlay()
@@ -152,46 +187,21 @@ const playPrev = () => {
     playAudio(props.tracks[currentIndex.value - 1])
 }
 
-audio.ontimeupdate = () => {
-    if (audio.duration) {
-        currentTime.value = audio.currentTime
-        duration.value = audio.duration
-        progress.value = audio.currentTime / audio.duration
-        emit('progress', progress.value)
-    }
-}
-
-audio.onloadedmetadata = () => {
-    duration.value = audio.duration
-}
-
-audio.onended = () => {
-    if (hasNext.value) {
-        playNext()
-    } else {
-        isPlaying.value = false
-        progress.value = 0
-        currentTime.value = 0
-        currentId.value = null
-        clearAudioNotification()
-    }
-}
-
 const seek = (e) => {
     const el = e.currentTarget
     const rect = el.getBoundingClientRect()
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    if (!audio.duration) return
-    audio.currentTime = percent * audio.duration
+    if (!duration.value) return
+    engine.seekTo(percent)
     emit('seek', percent)
 }
 
 const seekByClientX = (clientX) => {
     const el = scrubTrackEl.value
-    if (!el || !audio.duration) return
+    if (!el || !duration.value) return
     const rect = el.getBoundingClientRect()
     const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    audio.currentTime = percent * audio.duration
+    engine.seekTo(percent)
     emit('seek', percent)
 }
 
@@ -209,7 +219,7 @@ const stopScrub = () => {
 }
 
 const startScrub = (e) => {
-    if (!audio.duration) return
+    if (!duration.value) return
     isScrubbing.value = true
     seekByClientX(e.clientX)
     window.addEventListener('pointermove', onScrubMove)
@@ -218,8 +228,8 @@ const startScrub = (e) => {
 }
 
 const seekTo = (percent) => {
-    if (!audio.duration) return
-    audio.currentTime = percent * audio.duration
+    if (!duration.value) return
+    engine.seekTo(percent)
 }
 
 sharedSeekTo.value = seekTo
