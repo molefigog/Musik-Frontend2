@@ -225,10 +225,10 @@ const miniIsScrubbing = ref(false)
 
 const miniSeekByClientX = (clientX) => {
     const el = miniScrubTrackEl.value
-    if (!el || !audio.duration) return
+    if (!el || !duration.value) return
     const rect = el.getBoundingClientRect()
     const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    audio.currentTime = percent * audio.duration
+    engine.seekTo(percent)
     emit('seek', percent)
 }
 
@@ -250,7 +250,7 @@ const stopMiniScrub = () => {
 }
 
 const startMiniScrub = (e) => {
-    if (!audio.duration) return
+    if (!duration.value) return
     miniIsScrubbing.value = true
     miniSeekByClientX(e.clientX)
     window.addEventListener('pointermove', onMiniScrubMove)
