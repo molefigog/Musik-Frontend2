@@ -1,0 +1,108 @@
+diff --git a/src/components/AudioPlayer.vue b/src/components/AudioPlayer.vue
+index 13e09eb..95061f5 100644
+--- a/src/components/AudioPlayer.vue
++++ b/src/components/AudioPlayer.vue
+@@ -84,6 +84,10 @@ const formatTime = (sec) => {
+     return `${m}:${s < 10 ? '0' : ''}${s}`
+ }
+ 
++// Same lookup IndexPage.vue uses, so the mini-player shows the same
++// artwork the track's card shows in the list.
++const getCoverArt = (track) => track?.release?.cover_art || track?.cover_art || ''
++
+ // One playback engine for the lifetime of the app module: HTML5 <audio> on
+ // web, the native ExoAudioPlayer Capacitor plugin on Android. Both report
+ // back through this same set of callbacks, which just write into the
+@@ -326,22 +330,37 @@ onUnmounted(() => {
+         </div>
+     </div>
+ 
+-    <!-- ANDROID: toggleable mini-player -->
++    <!-- ANDROID: toggleable mini-player, modeled on the Android media
++         notification layout: artwork, title/time, a scrubbable seek bar
++         (same seek/startScrub handlers the web bar uses), centered
++         transport controls. -->
+     <template v-if="isAndroid">
+         <q-dialog v-model="dialog" position="bottom" seamless>
+-            <q-card v-if="currentTrack" style="width: 350px" class="mini-player-card">
+-                <q-linear-progress :value="progress" color="pink" />
++            <q-card v-if="currentTrack" style="width: 380px" class="mini-player-card">
++                <div ref="scrubTrackEl" class="seek-track mini-seek" @click="seek"
++                    @pointerdown.prevent="startScrub">
++                    <div class="seek-fill" :style="{ width: (progress * 100) + '%' }" />
++                    <div class="seek-thumb" :style="{ left: 'calc(' + (progress * 100) + '% - 5px)' }" />
++                </div>
++
++                <q-card-section class="row items-center no-wrap mini-body">
++                    <q-avatar square size="48px" class="mini-art">
++                        <img v-if="getCoverArt(currentTrack)" :src="getCoverArt(currentTrack)">
++                        <q-icon v-else name="music_note" size="24px" color="grey-6" />
++                    </q-avatar>
+ 
+-                <q-card-section class="row items-center no-wrap">
+                     <div class="mini-info">
+                         <div class="text-weight-bold ellipsis">{{ currentTrack.title || 'Untitled Beat' }}</div>
+-                        <div class="text-grey ellipsis">{{ isPlaying ? 'Now Playing' : 'Paused' }}</div>
++                        <div class="text-grey ellipsis mini-time">
++                            {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
++                        </div>
+                     </div>
+ 
+                     <q-space />
+ 
+                     <q-btn flat round dense icon="fast_rewind" :disable="!hasPrev" @click="playPrev" />
+-                    <q-btn flat round dense :icon="isPlaying ? 'pause' : 'play_arrow'" @click="togglePlay" />
++                    <q-btn flat round dense size="md" class="mini-play-btn"
++                        :icon="isPlaying ? 'pause_circle' : 'play_circle'" @click="togglePlay" />
+                     <q-btn flat round dense icon="fast_forward" :disable="!hasNext" @click="playNext" />
+                     <q-btn flat round dense icon="close" class="q-ml-xs" @click="dialog = false" />
+                 </q-card-section>
+@@ -642,7 +661,31 @@ onUnmounted(() => {
+ 
+ /* ANDROID mini-player */
+ .mini-player-card {
+-    border-radius: 12px;
++    border-radius: 16px;
++    overflow: hidden;
++    background: rgba(18, 18, 24, 0.98);
++}
++
++.mini-seek {
++    height: 0.28rem;
++}
++
++.mini-body {
++    padding: 0.65rem 0.75rem 0.75rem;
++    gap: 0.6rem;
++}
++
++.mini-art {
++    border-radius: 8px;
++    background: rgba(255, 255, 255, 0.06);
++    overflow: hidden;
++    flex-shrink: 0;
++}
++
++.mini-art img {
++    width: 100%;
++    height: 100%;
++    object-fit: cover;
+ }
+ 
+ .mini-info {
+@@ -656,6 +699,15 @@ onUnmounted(() => {
+     text-overflow: ellipsis;
+ }
+ 
++.mini-time {
++    font-size: 0.68rem;
++    font-variant-numeric: tabular-nums;
++}
++
++.mini-play-btn {
++    color: #fff;
++}
++
+ .mini-player-fab {
+     position: fixed;
+     right: 16px;

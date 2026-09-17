@@ -29,20 +29,14 @@ const props = defineProps({
 })
 
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
-
 const currentId = sharedCurrentId
 const isPlaying = sharedIsPlaying
 const progress = sharedProgress
 const duration = sharedDuration
 const currentTime = sharedCurrentTime
 const isLoading = sharedIsLoading
-
 const isScrubbing = ref(false)
 const scrubTrackEl = ref(null)
-
-// Android mini-player visibility. Hidden while nothing is loaded,
-// auto-opens when a track starts, and can be toggled independently
-// of playback (closing it does not stop audio).
 const dialog = ref(false)
 
 const emit = defineEmits([
@@ -54,9 +48,7 @@ const emit = defineEmits([
 
 const getSrc = (track) => {
     if (!track?.file_src) return ''
-    // Already-resolved sources (public URLs, or blob:/data: URLs built by a
-    // caller that needed to fetch an authenticated file first) pass through
-    // untouched. Everything else is treated as a storage-relative path.
+
     if (/^(https?:|blob:|data:)/.test(track.file_src)) return track.file_src
     return `${import.meta.env.VITE_API_BASE_URL}/storage/${track.file_src}`
 }
@@ -84,10 +76,6 @@ const formatTime = (sec) => {
     return `${m}:${s < 10 ? '0' : ''}${s}`
 }
 
-// One playback engine for the lifetime of the app module: HTML5 <audio> on
-// web, the native ExoAudioPlayer Capacitor plugin on Android. Both report
-// back through this same set of callbacks, which just write into the
-// shared refs — nothing downstream needs to know which engine is active.
 const engine = createAudioEngine({
     onTimeUpdate: ({ currentTime: ct, duration: d, progress: p }) => {
         currentTime.value = ct
@@ -232,12 +220,45 @@ const seekTo = (percent) => {
     engine.seekTo(percent)
 }
 
+const miniScrubTrackEl = ref(null)
+const miniIsScrubbing = ref(false)
+
+const miniSeekByClientX = (clientX) => {
+    const el = miniScrubTrackEl.value
+    if (!el || !audio.duration) return
+    const rect = el.getBoundingClientRect()
+    const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    audio.currentTime = percent * audio.duration
+    emit('seek', percent)
+}
+
+const miniSeek = (e) => {
+    miniSeekByClientX(e.clientX)
+}
+
+const onMiniScrubMove = (e) => {
+    if (!miniIsScrubbing.value) return
+    miniSeekByClientX(e.clientX)
+}
+
+const stopMiniScrub = () => {
+    if (!miniIsScrubbing.value) return
+    miniIsScrubbing.value = false
+    window.removeEventListener('pointermove', onMiniScrubMove)
+    window.removeEventListener('pointerup', stopMiniScrub)
+    window.removeEventListener('pointercancel', stopMiniScrub)
+}
+
+const startMiniScrub = (e) => {
+    if (!audio.duration) return
+    miniIsScrubbing.value = true
+    miniSeekByClientX(e.clientX)
+    window.addEventListener('pointermove', onMiniScrubMove)
+    window.addEventListener('pointerup', stopMiniScrub)
+    window.addEventListener('pointercancel', stopMiniScrub)
+}
 sharedSeekTo.value = seekTo
 
-// Android only: open the mini-player automatically when a new track
-// starts, and hide it again once playback is fully stopped/cleared.
-// A manual dialog.value = false (via the close button or the fab)
-// is left untouched by this watcher unless the track itself changes.
 if (isAndroid) {
     watch(currentTrack, (track, prevTrack) => {
         if (track && !prevTrack) {
@@ -263,7 +284,7 @@ watch(() => props.tracks, registerTracks, { immediate: true })
 /* keep playback running across route changes */
 onUnmounted(() => {
     stopScrub()
-    // Intentionally do not pause or clear src.
+
 })
 </script>
 
@@ -330,7 +351,10 @@ onUnmounted(() => {
     <template v-if="isAndroid">
         <q-dialog v-model="dialog" position="bottom" seamless>
             <q-card v-if="currentTrack" style="width: 350px" class="mini-player-card">
-                <q-linear-progress :value="progress" color="pink" />
+                <div ref="miniScrubTrackEl" class="mini-seek-track" @click="miniSeek"
+                    @pointerdown.prevent="startMiniScrub">
+                    <div class="mini-seek-fill" :style="{ width: (progress * 100) + '%' }" />
+                </div>
 
                 <q-card-section class="row items-center no-wrap">
                     <div class="mini-info">
@@ -402,6 +426,20 @@ onUnmounted(() => {
     opacity: 0;
     pointer-events: none;
     transition: left 0.05s linear, opacity 0.15s;
+}
+
+.mini-seek-track {
+    width: 100%;
+    height: 0.25rem;
+    background: rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    position: relative;
+}
+
+.mini-seek-fill {
+    height: 100%;
+    background: #ec4899;
+    pointer-events: none;
 }
 
 .player-inner {
